@@ -222,7 +222,7 @@ export default function Terrain() {
 
       {vehicleInfo && (
         <div className="card" style={{ marginBottom: 16, background: 'rgba(0,191,255,0.05)', borderColor: 'rgba(0,191,255,0.2)', display: 'flex', alignItems: 'center', gap: 12, padding: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,191,255,0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'var(--blue)' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,191,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--blue)' }}>
             <Info size={20} style={{margin: '0 auto'}} />
           </div>
           <div style={{ flex: 1 }}>
