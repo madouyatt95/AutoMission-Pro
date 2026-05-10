@@ -193,15 +193,15 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
 
 /* Terrain Mode */
 .terrain-plaque-container { position: relative; width: 100%; max-width: 360px; margin: 0 auto 24px; }
-.eu-plate { display: flex; width: 100%; height: 70px; background: rgba(10,14,20,0.9); border: 2px solid var(--accent); border-radius: 8px; overflow: hidden; box-shadow: 0 0 20px rgba(255,85,0,0.2), inset 0 0 10px rgba(0,0,0,0.5); }
-.eu-band { width: 40px; background: #003399; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 6px 0; }
-.eu-stars { width: 24px; height: 24px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="%23FFCC00" d="M256 0l57 175h184l-149 108 57 175-149-108-149 108 57-175-149-108h184z"/></svg>') no-repeat center; }
-.eu-country { color: white; font-size: 18px; font-weight: 900; font-family: var(--font); }
-.eu-input { flex: 1; background: transparent; border: none; font-family: var(--mono); font-size: 38px; font-weight: 900; color: white; text-align: center; letter-spacing: 4px; outline: none; text-transform: uppercase; }
-.eu-scan { width: 60px; background: rgba(255,255,255,0.05); border-left: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: background 0.2s; }
-.eu-scan:active { background: rgba(255,85,0,0.2); }
-.eu-scan svg { color: var(--accent); width: 24px; height: 24px; }
-.eu-scan span { font-size: 10px; font-weight: 800; color: var(--text2); }
+.eu-plate { display: flex; width: 100%; height: 60px; background: #fff; border: 2px solid #222; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.eu-band { width: 36px; background: #003399; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; }
+.eu-stars { width: 20px; height: 12px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="%23FFCC00" d="M256 0l57 175h184l-149 108 57 175-149-108-149 108 57-175-149-108h184z"/></svg>') no-repeat center; background-size: contain; }
+.eu-country { color: white; font-size: 14px; font-weight: 900; line-height: 1; }
+.eu-input { flex: 1; background: transparent; border: none; font-family: var(--mono); font-size: 28px; font-weight: 800; color: #111; text-align: center; letter-spacing: 1px; outline: none; text-transform: uppercase; min-width: 0; }
+.eu-scan { width: 60px; background: #f0f0f0; border-left: 1px solid #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; flex-shrink: 0; color: #333; }
+.eu-scan:active { background: #e0e0e0; }
+.eu-scan svg { color: var(--accent); width: 20px; height: 20px; }
+.eu-scan span { font-size: 9px; font-weight: 800; text-transform: uppercase; }
 
 .terrain-grid-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 .terrain-media-card { position: relative; height: 140px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: flex-end; padding: 16px; background-size: cover; background-position: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
