@@ -1,16 +1,22 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, MapPin, Edit2, Building, User, FileText, TrendingUp, Calendar } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Edit2, Building, User, FileText, TrendingUp, Calendar, Trash2 } from 'lucide-react';
 import { useClientStore, useMissionStore, useDocumentStore } from '../store';
 import { STATUS_CONFIG } from '../types';
+import SafeModal from '../components/SafeModal';
 
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { clients, updateClient } = useClientStore();
+  const { clients, updateClient, deleteClient } = useClientStore();
   const { missions } = useMissionStore();
   const { documents } = useDocumentStore();
-
+  
   const client = clients.find(c => c.id === id);
+  
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(client || { nom: '', email: '', telephone: '', adresse: '', siret: '', type: 'entreprise' as const, conditionsPaiement: '', notes: '' });
+
   if (!client) return <div className="page"><p>Client introuvable</p><button className="btn btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Retour</button></div>;
 
   const clientMissions = missions.filter(m => m.clients.some(c => c.clientId === client.id));
@@ -34,11 +40,30 @@ export default function ClientDetail() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0a0e14&color=fff&size=128&bold=true`;
   };
 
+  const handleEdit = () => {
+    if (!form.nom.trim()) return;
+    updateClient(client.id, form);
+    setEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (clientMissions.length > 0) {
+      alert("Impossible de supprimer ce client car il a des missions associées. Supprimez d'abord ses missions.");
+      return;
+    }
+    if (window.confirm('Voulez-vous vraiment supprimer ce client ?')) {
+      deleteClient(client.id);
+      navigate('/clients');
+    }
+  };
+
   return (
     <div className="page" style={{ paddingBottom: 120 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button className="btn-icon btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
         <h1 style={{ fontSize: 22, fontWeight: 800, flex: 1 }}>Fiche Client</h1>
+        <button className="btn-icon btn-secondary" onClick={() => { setForm(client); setEditing(true); }}><Edit2 size={20} /></button>
+        <button className="btn-icon btn-secondary" style={{ color: 'var(--red)' }} onClick={handleDelete}><Trash2 size={20} /></button>
       </div>
 
       {/* Header Card */}
@@ -159,6 +184,30 @@ export default function ClientDetail() {
           <div className="card" style={{ padding: 16, color: 'var(--text2)', fontSize: 14 }}>{client.notes}</div>
         </div>
       )}
+
+      <SafeModal
+        isOpen={editing}
+        onClose={() => setEditing(false)}
+        title="Modifier le client"
+        actions={<button className="btn btn-primary btn-full" onClick={handleEdit}>Enregistrer</button>}
+      >
+        <div className="input-group">
+          <label className="input-label">Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className={`btn ${form.type === 'entreprise' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setForm({ ...form, type: 'entreprise' })}><Building size={16} /> Entreprise</button>
+            <button className={`btn ${form.type === 'particulier' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setForm({ ...form, type: 'particulier' })}><User size={16} /> Particulier</button>
+          </div>
+        </div>
+        <div className="input-group"><label className="input-label">Nom d'entreprise / Prénom Nom *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Téléphone</label><input className="input" type="tel" value={form.telephone || ''} onChange={e => setForm({ ...form, telephone: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Email Pro (pour le logo)</label><input className="input" type="email" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Adresse postale</label><input className="input" value={form.adresse || ''} onChange={e => setForm({ ...form, adresse: e.target.value })} /></div>
+        {form.type === 'entreprise' && (
+          <div className="input-group"><label className="input-label">SIRET</label><input className="input" value={form.siret || ''} onChange={e => setForm({ ...form, siret: e.target.value })} /></div>
+        )}
+        <div className="input-group"><label className="input-label">Conditions de paiement</label><input className="input" placeholder="Ex: 30 jours fin de mois" value={form.conditionsPaiement || ''} onChange={e => setForm({ ...form, conditionsPaiement: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Notes internes</label><textarea className="input" style={{ minHeight: 80 }} value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+      </SafeModal>
     </div>
   );
 }
