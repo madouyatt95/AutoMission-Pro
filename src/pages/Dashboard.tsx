@@ -42,8 +42,31 @@ export default function Dashboard() {
       return { id: c?.id, name: c?.nom || 'Inconnu', revenue: rev, domain: c?.email?.split('@')[1] || '' };
     });
 
+  // Better logo logic
+  const getLogo = (name: string, domain?: string) => {
+    const brandMap: Record<string, string> = {
+      'avis': 'avis.com',
+      'hertz': 'hertz.com',
+      'sixt': 'sixt.com',
+      'europcar': 'europcar.com',
+      'rent a car': 'rentacar.fr',
+      'ada': 'ada.fr',
+      'mercedes': 'mercedes-benz.com',
+      'bmw': 'bmw.com',
+      'audi': 'audi.com',
+      'volkswagen': 'volkswagen.com',
+      'tesla': 'tesla.com'
+    };
+    const key = name.toLowerCase();
+    const foundDomain = Object.keys(brandMap).find(k => key.includes(k));
+    const finalDomain = foundDomain ? brandMap[foundDomain] : domain;
+    
+    if (finalDomain) return `https://logo.clearbit.com/${finalDomain}`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+  };
+
   // Recent vehicles
-  const recentVehicles = [...new Set(missions.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(m => m.plaque))].slice(0, 3);
+  const recentVehicles = [...new Set(missions.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(m => m.plaque))].slice(0, 5);
   const carImages = [
     'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=400',
     'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=400',
@@ -184,8 +207,8 @@ export default function Dashboard() {
           <div className="card" style={{ padding: '8px 16px' }}>
             {topClients.map((c, i) => (
               <div key={c.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0', borderBottom: i < topClients.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }} onClick={() => navigate('/clients')}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'white', padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {c.domain ? <img src={`https://logo.clearbit.com/${c.domain}`} onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${c.name}&background=random` }} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'contain' }} alt={c.name} /> : <div style={{width: 24, height: 24, background: 'var(--accent)', borderRadius: '50%'}}></div>}
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'white', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+                  <img src={getLogo(c.name, c.domain)} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'contain' }} alt={c.name} />
                 </div>
                 <span style={{ fontWeight: 700, flex: 1, fontSize: 15 }}>{c.name}</span>
                 <span style={{ color: 'var(--accent)', fontWeight: 900, fontSize: 15 }}>{c.revenue.toLocaleString('fr-FR')} €</span>

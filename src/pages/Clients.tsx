@@ -16,6 +16,23 @@ export default function Clients() {
   const getClientCA = (id: string) => missions.reduce((s, m) => s + m.clients.filter(c => c.clientId === id).reduce((ss, c) => ss + c.montantTTC, 0), 0);
   const getClientMissions = (id: string) => missions.filter(m => m.clients.some(c => c.clientId === id)).length;
 
+  const getLogo = (name: string, email?: string) => {
+    const brandMap: Record<string, string> = {
+      'avis': 'avis.com', 'hertz': 'hertz.com', 'sixt': 'sixt.com',
+      'europcar': 'europcar.com', 'rent a car': 'rentacar.fr', 'ada': 'ada.fr',
+      'mercedes': 'mercedes-benz.com', 'bmw': 'bmw.com', 'audi': 'audi.com',
+      'volkswagen': 'volkswagen.com', 'tesla': 'tesla.com'
+    };
+    const key = name.toLowerCase();
+    const foundDomain = Object.keys(brandMap).find(k => key.includes(k));
+    const domain = foundDomain ? brandMap[foundDomain] : email?.split('@')[1];
+    
+    if (domain && !['gmail.com', 'outlook.fr', 'orange.fr', 'wanadoo.fr', 'free.fr'].includes(domain)) {
+      return `https://logo.clearbit.com/${domain}`;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+  };
+
   const handleAdd = () => {
     if (!form.nom.trim()) return;
     addClient(form);
@@ -44,11 +61,7 @@ export default function Clients() {
             <div key={client.id} className="client-card" onClick={() => navigate(`/missions?client=${client.id}`)}>
               <div className="client-left">
                 <div className="client-logo-wrapper">
-                  {domain ? (
-                    <img src={`https://logo.clearbit.com/${domain}`} onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${client.nom}&background=random` }} className="client-logo" alt={client.nom} />
-                  ) : (
-                    <Building size={24} color="var(--blue)" />
-                  )}
+                  <img src={getLogo(client.nom, client.email)} className="client-logo" alt={client.nom} />
                   {isTop && (
                     <div className="client-badge" style={{background: 'var(--orange)'}}><Briefcase size={8} color="white" /></div>
                   )}

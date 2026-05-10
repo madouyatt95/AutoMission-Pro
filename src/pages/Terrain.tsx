@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Search } from 'lucide-react';
+import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Search, Info } from 'lucide-react';
 import { useMissionStore } from '../store';
 import { MISSION_TYPES, MissionType } from '../types';
 
@@ -24,6 +24,7 @@ export default function Terrain() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [vehicleInfo, setVehicleInfo] = useState<{ brand: string; model: string; loading: boolean } | null>(null);
   
   // OCR Scanner state
   const [isScanning, setIsScanning] = useState(false);
@@ -71,6 +72,26 @@ export default function Terrain() {
       recognitionRef.current = recognition;
     }
   }, []);
+
+  // VIN Lookup Simulation
+  useEffect(() => {
+    if (plaque.length >= 7) {
+      setVehicleInfo({ brand: '', model: '', loading: true });
+      const timer = setTimeout(() => {
+        const brands = ['RENAULT', 'PEUGEOT', 'TESLA', 'BMW', 'AUDI', 'MERCEDES', 'VOLKSWAGEN'];
+        const models = ['Clio V', '3008', 'Model 3', 'Série 3', 'A4', 'Classe A', 'Golf 8'];
+        const randomIdx = Math.floor(Math.random() * brands.length);
+        setVehicleInfo({
+          brand: brands[randomIdx],
+          model: models[randomIdx],
+          loading: false
+        });
+      }, 800);
+      return () => clearTimeout(timer);
+    } else {
+      setVehicleInfo(null);
+    }
+  }, [plaque]);
 
   const handlePhoto = () => {
     fileRef.current?.click();
@@ -147,7 +168,7 @@ export default function Terrain() {
 
   if (saved) {
     return (
-      <div className="terrain-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div className="page" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,230,118,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: 'var(--green-glow)' }}>
             <Check size={40} color="var(--green)" />
@@ -160,7 +181,7 @@ export default function Terrain() {
   }
 
   return (
-    <div className="terrain-page">
+    <div className="page">
       {/* OCR Scanner Modal (Simulation) */}
       {isScanning && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
@@ -179,7 +200,7 @@ export default function Terrain() {
         </div>
       )}
 
-      <div className="terrain-plaque-container">
+      <div className="terrain-plaque-container" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)', padding: '10px 0' }}>
         <div className="eu-plate">
           <div className="eu-band">
             <div className="eu-stars"></div>
@@ -198,6 +219,24 @@ export default function Terrain() {
           </div>
         </div>
       </div>
+
+      {vehicleInfo && (
+        <div className="card" style={{ marginBottom: 16, background: 'rgba(0,191,255,0.05)', borderColor: 'rgba(0,191,255,0.2)', display: 'flex', alignItems: 'center', gap: 12, padding: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(0,191,255,0.1)', display: 'flex', alignItems: 'center', justifyCenter: 'center', color: 'var(--blue)' }}>
+            <Info size={20} style={{margin: '0 auto'}} />
+          </div>
+          <div style={{ flex: 1 }}>
+            {vehicleInfo.loading ? (
+              <span style={{ fontSize: 13, color: 'var(--text2)' }}>Identification en cours...</span>
+            ) : (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>{vehicleInfo.brand} {vehicleInfo.model}</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Véhicule identifié via VIN</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="section" style={{ marginBottom: 16 }}>
         <div className="input-label">TYPE DE MISSION</div>
@@ -239,7 +278,7 @@ export default function Terrain() {
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={onFileChange} />
 
-      <div className="section">
+      <div className="section" style={{ marginTop: 16 }}>
         <div className="input-label">NOTES</div>
         <div style={{ position: 'relative' }}>
           <textarea 
@@ -253,20 +292,20 @@ export default function Terrain() {
       </div>
 
       {geo && (
-        <div className="location-card">
+        <div className="location-card" style={{ marginBottom: 16 }}>
           <div className="location-info">
             <div className="location-title">
               Position GPS enregistrée
             </div>
             <div className="location-subtitle">
-              {geo.lat.toFixed(4)}, {geo.lng.toFixed(4)} • {new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              {geo.lat.toFixed(4)}, {geo.lng.toFixed(4)}
             </div>
           </div>
           <div className="location-icon"><MapPin /></div>
         </div>
       )}
 
-      <div className="terrain-submit">
+      <div className="terrain-submit" style={{ marginTop: 16, paddingBottom: 40 }}>
         <button
           className="btn-terrain-submit"
           onClick={handleSubmit}
