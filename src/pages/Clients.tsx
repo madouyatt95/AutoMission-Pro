@@ -20,17 +20,20 @@ export default function Clients() {
     const brandMap: Record<string, string> = {
       'avis': 'avis.com', 'hertz': 'hertz.com', 'sixt': 'sixt.com',
       'europcar': 'europcar.com', 'rent a car': 'rentacar.fr', 'ada': 'ada.fr',
+      'ald': 'aldautomotive.com', 'arval': 'arval.com', 'leaseplan': 'leaseplan.com',
+      'alphabet': 'alphabet.com', 'peugeot': 'peugeot.com', 'renault': 'renault.com',
       'mercedes': 'mercedes-benz.com', 'bmw': 'bmw.com', 'audi': 'audi.com',
-      'volkswagen': 'volkswagen.com', 'tesla': 'tesla.com'
+      'volkswagen': 'volkswagen.com', 'tesla': 'tesla.com', 'toyota': 'toyota.com',
+      'bnp': 'bnpparibas.com', 'société générale': 'societegenerale.com', 'fleet': 'aldautomotive.com'
     };
     const key = name.toLowerCase();
     const foundDomain = Object.keys(brandMap).find(k => key.includes(k));
     const domain = foundDomain ? brandMap[foundDomain] : email?.split('@')[1];
     
     if (domain && !['gmail.com', 'outlook.fr', 'orange.fr', 'wanadoo.fr', 'free.fr'].includes(domain)) {
-      return `https://logo.clearbit.com/${domain}`;
+      return `https://logo.clearbit.com/${domain}?size=128`;
     }
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0a0e14&color=fff&size=128&bold=true`;
   };
 
   const handleAdd = () => {
