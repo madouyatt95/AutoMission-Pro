@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X } from 'lucide-react';
+import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Search } from 'lucide-react';
 import { useMissionStore } from '../store';
 import { MISSION_TYPES, MissionType } from '../types';
 
@@ -149,10 +149,10 @@ export default function Terrain() {
     return (
       <div className="terrain-page" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,230,118,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: 'var(--green-glow)' }}>
             <Check size={40} color="var(--green)" />
           </div>
-          <h2 style={{ fontSize: 22, fontWeight: 700 }}>Mission créée !</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 800 }}>Mission créée !</h2>
           <p style={{ color: 'var(--text2)', marginTop: 8 }}>Brouillon sauvegardé</p>
         </div>
       </div>
@@ -163,99 +163,118 @@ export default function Terrain() {
     <div className="terrain-page">
       {/* OCR Scanner Modal (Simulation) */}
       {isScanning && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#000', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={() => setIsScanning(false)} style={{ background: 'none', border: 'none', color: 'white' }}><X size={32} /></button>
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            <div style={{ border: '2px solid rgba(255,255,255,0.5)', width: '80%', height: 120, position: 'relative', borderRadius: 8, overflow: 'hidden' }}>
-               <div style={{ width: '100%', height: 2, background: '#10b981', boxShadow: '0 0 10px #10b981', position: 'absolute', top: 0, left: 0, animation: 'scan 1.5s infinite linear' }} />
+            <div style={{ border: '3px solid var(--accent)', width: '80%', height: 120, position: 'relative', borderRadius: 8, overflow: 'hidden', boxShadow: '0 0 30px rgba(255,85,0,0.3)' }}>
+               <div style={{ width: '100%', height: 2, background: 'var(--accent)', boxShadow: '0 0 15px var(--accent)', position: 'absolute', top: 0, left: 0, animation: 'scan 1.5s infinite linear' }} />
             </div>
             <style dangerouslySetInnerHTML={{__html: `
               @keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
             `}} />
           </div>
-          <div style={{ padding: 32, textAlign: 'center', color: 'white', fontWeight: 600 }}>Recherche de plaque...</div>
+          <div style={{ padding: 32, textAlign: 'center', color: 'white', fontWeight: 700, fontSize: 18 }}>Recherche de plaque...</div>
         </div>
       )}
 
-      <div className="terrain-header">
-        <h1><Zap className="icon" size={24} /> MODE TERRAIN</h1>
-        <p style={{ color: 'var(--text2)', fontSize: 13 }}>Création rapide de mission</p>
+      <div className="terrain-plaque-container">
+        <div className="eu-plate">
+          <div className="eu-band">
+            <div className="eu-stars"></div>
+            <div className="eu-country">F</div>
+          </div>
+          <input
+            className="eu-input"
+            placeholder="AA-123-BB"
+            value={plaque}
+            onChange={e => setPlaque(e.target.value.toUpperCase())}
+            maxLength={10}
+          />
+          <div className="eu-scan" onClick={startOcrScan}>
+            <ScanLine />
+            <span>SCAN</span>
+          </div>
+        </div>
       </div>
 
-      <div style={{ position: 'relative', margin: '0 auto 16px', maxWidth: 320, width: '100%' }}>
-        <input
-          className="input input-plaque"
-          placeholder="AA-123-BB"
-          value={plaque}
-          onChange={e => setPlaque(e.target.value.toUpperCase())}
-          maxLength={10}
-        />
-        <button 
-          onClick={startOcrScan}
-          style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text)' }}
-          title="Scanner une plaque"
-        >
-          <ScanLine size={20} />
-        </button>
-      </div>
-
-      <div>
-        <div className="input-label">Type de mission</div>
+      <div className="section" style={{ marginBottom: 16 }}>
+        <div className="input-label">TYPE DE MISSION</div>
         <div className="terrain-types">
           {MISSION_TYPES.map(t => (
-            <button key={t} className={`chip ${type === t ? 'active' : ''}`} onClick={() => setType(t)}>{t}</button>
+            <button key={t} className={`chip ${type === t ? 'active' : ''}`} onClick={() => setType(t)} style={{ padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {t === 'Expertise' && <Search size={14} />}
+              {t === 'Révision' && <Zap size={14} />}
+              {t}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="terrain-actions" style={{ marginTop: 8 }}>
-        <button className="terrain-action-btn" onClick={handlePhoto}>
-          <Camera />
-          <span>Photo{photos.length > 0 ? ` (${photos.length})` : ''}</span>
-        </button>
-        <button className="terrain-action-btn" onClick={toggleVoice} style={recording ? { borderColor: 'var(--red)', background: 'var(--red-bg)' } : {}}>
-          {recording ? <MicOff color="var(--red)" /> : <Mic />}
-          <span>{recording ? 'Arrêter la dictée' : `Dicter notes`}</span>
-        </button>
+      <div className="terrain-grid-cards">
+        <div className="terrain-media-card" onClick={handlePhoto} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=400')" }}>
+          <div className="terrain-media-content">
+            <div className="terrain-media-info">
+              <h3>Photo</h3>
+              <p>Ajouter une photo</p>
+              {photos.length > 0 && <p style={{color: 'var(--accent)', fontWeight: 700}}>{photos.length} photo(s)</p>}
+            </div>
+            <button className="terrain-media-btn"><Plus size={20}/></button>
+          </div>
+        </div>
+        
+        <div className="terrain-media-card" onClick={toggleVoice} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&q=80&w=400')" }}>
+          <div className="terrain-media-content">
+            <div className="terrain-media-info">
+              <h3>Dicter notes</h3>
+              <p>{recording ? 'Enregistrement...' : 'Enregistrer une note'}</p>
+            </div>
+            <button className="terrain-media-btn" style={recording ? { background: 'var(--red)', boxShadow: '0 0 15px var(--red)' } : {}}>
+              {recording ? <MicOff size={20} /> : <Plus size={20} />}
+            </button>
+          </div>
+        </div>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={onFileChange} />
 
-      {photos.length > 0 && (
-        <div className="photo-grid">
-          {photos.map(p => (
-            <div key={p.id} className="photo-thumb">
-              <img src={p.dataUrl} alt="capture" />
-            </div>
-          ))}
+      <div className="section">
+        <div className="input-label">NOTES</div>
+        <div style={{ position: 'relative' }}>
+          <textarea 
+            className="terrain-textarea" 
+            placeholder="Notes d'intervention, détails, remarques..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+          <Edit2 size={16} color="var(--text2)" style={{ position: 'absolute', right: 16, bottom: 32 }} />
         </div>
-      )}
-
-      <div style={{ marginTop: 8 }}>
-        <div className="input-label">Notes {recording && <span style={{color: 'var(--red)', fontSize: 10}}> (Écoute en cours...)</span>}</div>
-        <textarea 
-          className="input textarea" 
-          placeholder="Notes d'intervention, détails, remarques..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
       </div>
 
       {geo && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)', marginTop: 8 }}>
-          <MapPin size={14} color="var(--green)" /> Position GPS enregistrée
+        <div className="location-card">
+          <div className="location-info">
+            <div className="location-title">
+              Position GPS enregistrée
+            </div>
+            <div className="location-subtitle">
+              {geo.lat.toFixed(4)}, {geo.lng.toFixed(4)} • {new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+          <div className="location-icon"><MapPin /></div>
         </div>
       )}
 
-      <div className="terrain-submit" style={{ marginTop: 'auto', paddingTop: 16 }}>
+      <div className="terrain-submit">
         <button
-          className="btn btn-primary btn-full btn-lg"
+          className="btn-terrain-submit"
           onClick={handleSubmit}
           disabled={!plaque.trim() || !type || saving}
+          style={(!plaque.trim() || !type || saving) ? { opacity: 0.5, filter: 'grayscale(1)' } : {}}
         >
-          {saving ? 'Sauvegarde...' : '✓ CRÉER MISSION'}
+          <Check size={24} />
+          {saving ? 'SAUVEGARDE...' : 'CRÉER MISSION'}
         </button>
       </div>
     </div>

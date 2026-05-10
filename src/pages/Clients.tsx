@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Phone, Mail, X } from 'lucide-react';
+import { Search, Plus, Phone, Mail, Building, Briefcase } from 'lucide-react';
 import { useClientStore, useMissionStore } from '../store';
 
 export default function Clients() {
-  const { clients, addClient, deleteClient } = useClientStore();
+  const { clients, addClient } = useClientStore();
   const { missions } = useMissionStore();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
@@ -27,42 +27,67 @@ export default function Clients() {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Clients</h1>
-        <p className="page-subtitle">{clients.length} client{clients.length > 1 ? 's' : ''}</p>
+        <p className="page-subtitle">{clients.length} partenaire{clients.length > 1 ? 's' : ''}</p>
       </div>
 
       <div className="search-bar">
-        <Search />
-        <input className="input" placeholder="Rechercher un client..." value={search} onChange={e => setSearch(e.target.value)} />
+        <Search className="search-icon" />
+        <input placeholder="Rechercher une entreprise..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      {filtered.map(client => (
-        <div key={client.id} className="card client-card" onClick={() => navigate(`/missions?client=${client.id}`)}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div className="client-name">{client.nom}</div>
-              <div className="client-info">
-                {client.telephone && <span><Phone size={11} /> {client.telephone} </span>}
-                {client.email && <span><Mail size={11} /> {client.email}</span>}
+      <div style={{ paddingBottom: 80 }}>
+        {filtered.map(client => {
+          const domain = client.email?.split('@')[1];
+          const isTop = getClientCA(client.id) > 1000;
+          
+          return (
+            <div key={client.id} className="client-card" onClick={() => navigate(`/missions?client=${client.id}`)}>
+              <div className="client-left">
+                <div className="client-logo-wrapper">
+                  {domain ? (
+                    <img src={`https://logo.clearbit.com/${domain}`} onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${client.nom}&background=random` }} className="client-logo" alt={client.nom} />
+                  ) : (
+                    <Building size={24} color="var(--blue)" />
+                  )}
+                  {isTop && (
+                    <div className="client-badge" style={{background: 'var(--orange)'}}><Briefcase size={8} color="white" /></div>
+                  )}
+                </div>
+                <div className="client-info">
+                  <div className="client-name">{client.nom}</div>
+                  <div className="client-contact">
+                    {client.telephone && <span>{client.telephone}</span>}
+                  </div>
+                  {isTop && <div className="client-tag top">VIP</div>}
+                </div>
+              </div>
+              <div className="client-right">
+                <div className="client-right-stats">
+                  <div className="client-ca">{getClientCA(client.id).toLocaleString('fr-FR')} €</div>
+                  <div className="client-count">{getClientMissions(client.id)} missions</div>
+                </div>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{getClientCA(client.id).toLocaleString('fr-FR')} €</div>
-              <div style={{ fontSize: 11, color: 'var(--text2)' }}>{getClientMissions(client.id)} missions</div>
-            </div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="empty-state">
+            <p style={{fontSize: 18, fontWeight: 700, color: 'var(--text)'}}>Aucun client trouvé</p>
           </div>
-        </div>
-      ))}
+        )}
+      </div>
 
       {adding && (
         <div className="modal-overlay" onClick={() => setAdding(false)}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="modal-handle" />
-            <h3 className="modal-title">Nouveau client</h3>
-            <div className="input-group"><label className="input-label">Nom *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
+            <h3 className="modal-title">Nouveau partenaire</h3>
+            <div className="input-group"><label className="input-label">Nom d'entreprise *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
             <div className="input-group"><label className="input-label">Téléphone</label><input className="input" type="tel" value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} /></div>
-            <div className="input-group"><label className="input-label">Email</label><input className="input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="input-group"><label className="input-label">Email Pro (pour le logo)</label><input className="input" type="email" placeholder="contact@entreprise.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
             <div className="input-group"><label className="input-label">Adresse</label><input className="input" value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })} /></div>
-            <button className="btn btn-primary btn-full" onClick={handleAdd}>Ajouter</button>
+            <button className="btn btn-primary btn-full" onClick={handleAdd}>Créer le client</button>
           </div>
         </div>
       )}

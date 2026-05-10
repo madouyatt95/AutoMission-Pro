@@ -31,7 +31,7 @@ export default function App() {
       <header className="top-header">
         <Link to="/" className="header-title">
           <Car size={24} color="var(--accent)" />
-          AutoMission Pro
+          AutoMission <span>Pro</span>
         </Link>
         <button className="header-bell" onClick={() => navigate('/rappels')}>
           <Bell />
