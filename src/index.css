@@ -28,15 +28,9 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body, #root { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
-
 /* App Layout */
-.app { display: flex; flex-direction: column; height: 100%; position: relative; }
+html, body, #root { height: 100%; min-height: 100dvh; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+.app { display: flex; flex-direction: column; min-height: 100dvh; position: relative; }
 .top-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: rgba(15,20,25,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; z-index: 100; }
 @media (min-width: 500px) { .top-header { max-width: 500px; left: 50%; transform: translateX(-50%); } }
 .header-title { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; }
@@ -45,7 +39,7 @@ html, body, #root { height: 100%; background: var(--bg); color: var(--text); fon
 .header-bell svg { width: 22px; height: 22px; }
 .bell-badge { position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; background: var(--red); border-radius: 50%; border: 2px solid var(--bg); }
 
-.page { flex: 1; overflow-y: auto; padding: calc(var(--header-height) + 16px) 16px calc(var(--nav-height) + 16px); -webkit-overflow-scrolling: touch; }
+.page { flex: 1; padding: calc(var(--header-height) + 16px) 16px calc(var(--nav-height) + 16px); }
 .page-header { position: sticky; top: var(--header-height); z-index: 50; background: var(--bg); padding: 12px 0 8px; margin-top: -16px; }
 .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
 .page-subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }

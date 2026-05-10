@@ -195,3 +195,21 @@ export const useRappelStore = create<RappelStore>()(
     { name: 'automission-rappels' }
   )
 );
+
+// ==================== SETTINGS STORE ====================
+interface SettingsStore {
+  tva: number;
+  companyName: string;
+  updateSettings: (updates: Partial<{ tva: number; companyName: string }>) => void;
+}
+
+export const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      tva: 20,
+      companyName: 'AutoMission Services',
+      updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
+    }),
+    { name: 'automission-settings' }
+  )
+);

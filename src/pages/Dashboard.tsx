@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Clock, FileText, CreditCard, Car, ChevronRight, ClipboardList } from 'lucide-react';
 import { useMissionStore, useClientStore, useRappelStore } from '../store';
 import { STATUS_CONFIG } from '../types';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
   const { missions } = useMissionStore();
@@ -41,6 +42,26 @@ export default function Dashboard() {
   // Recent vehicles
   const recentVehicles = [...new Set(missions.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(m => m.plaque))].slice(0, 5);
 
+  // Revenue Last 6 Months (Chart Data)
+  const last6MonthsData = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date(thisYear, thisMonth - 5 + i, 1);
+    const monthStr = d.toLocaleDateString('fr-FR', { month: 'short' });
+    const monthMissions = missions.filter(m => {
+      const md = new Date(m.dateTime);
+      return md.getMonth() === d.getMonth() && md.getFullYear() === d.getFullYear();
+    });
+    const rev = monthMissions.reduce((s, m) => s + (m.prixTTC || 0), 0);
+    return { name: monthStr, uv: rev };
+  });
+
+  // Status Distribution (Chart Data)
+  const statusData = [
+    { name: 'À facturer', value: byStatus.a_facturer, color: '#ef4444' },
+    { name: 'En attente', value: byStatus.en_attente, color: '#f59e0b' },
+    { name: 'Facturé', value: byStatus.facture, color: '#10b981' },
+    { name: 'Payé', value: byStatus.paye, color: '#3b82f6' }
+  ].filter(d => d.value > 0);
+
   return (
     <div className="page">
       <div className="dash-welcome">
@@ -57,26 +78,45 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat-card" onClick={() => navigate('/missions?status=a_facturer')} style={{ cursor: 'pointer' }}>
-          <div className="stat-value" style={{ color: 'var(--red)' }}>{byStatus.a_facturer}</div>
-          <div className="stat-label">À facturer</div>
+      <div className="section" style={{ marginTop: 20 }}>
+        <h3 className="section-title">Évolution CA (6 mois)</h3>
+        <div className="card" style={{ height: 220, padding: '16px 8px 0 0' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={last6MonthsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fill: 'var(--text2)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: 'var(--text2)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip 
+                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                contentStyle={{ background: 'var(--surface3)', border: 'none', borderRadius: 8, color: 'var(--text)' }}
+                itemStyle={{ color: 'var(--accent)' }}
+              />
+              <Bar dataKey="uv" name="CA (€)" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <div className="stat-card" onClick={() => navigate('/missions?status=en_attente')} style={{ cursor: 'pointer' }}>
-          <div className="stat-value" style={{ color: 'var(--orange)' }}>{byStatus.en_attente}</div>
-          <div className="stat-label">En attente</div>
-        </div>
-        <div className="stat-card" onClick={() => navigate('/missions?status=facture')} style={{ cursor: 'pointer' }}>
-          <div className="stat-value" style={{ color: 'var(--green)' }}>{byStatus.facture}</div>
-          <div className="stat-label">Facturées</div>
-        </div>
-        <div className="stat-card" onClick={() => navigate('/missions?status=paye')} style={{ cursor: 'pointer' }}>
-          <div className="stat-value" style={{ color: 'var(--blue)' }}>{byStatus.paye}</div>
-          <div className="stat-label">Payées</div>
-        </div>
-        <div className="stat-card wide">
-          <div><div className="stat-value">{missions.length}</div><div className="stat-label">Total missions</div></div>
-          <ClipboardList size={28} color="var(--text3)" />
+      </div>
+
+      <div className="section" style={{ marginTop: 20 }}>
+        <h3 className="section-title">Répartition Missions ({missions.length})</h3>
+        <div className="card" style={{ display: 'flex', alignItems: 'center', height: 180, padding: 16 }}>
+          <div style={{ width: '50%', height: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={statusData} innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value" stroke="none">
+                  {statusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ width: '50%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {statusData.map(s => (
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer' }} onClick={() => navigate('/missions')}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color }} />
+                <span style={{ color: 'var(--text2)', flex: 1 }}>{s.name}</span>
+                <span style={{ fontWeight: 'bold' }}>{s.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

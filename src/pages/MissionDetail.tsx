@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, ChevronDown, Plus, X } from 'lucide-react';
-import { useMissionStore, useClientStore } from '../store';
+import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool } from 'lucide-react';
+import { useMissionStore, useClientStore, useSettingsStore } from '../store';
+import SignaturePad from '../components/SignaturePad';
+import { generateRapportExpertise, generateFacture } from '../utils/exportPdf';
 import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
 
 type Tab = 'info' | 'degats' | 'billing' | 'docs';
@@ -11,6 +13,7 @@ export default function MissionDetail() {
   const navigate = useNavigate();
   const { missions, updateMission, deleteMission, duplicateMission } = useMissionStore();
   const { clients } = useClientStore();
+  const settings = useSettingsStore();
   const mission = missions.find(m => m.id === id);
 
   const [tab, setTab] = useState<Tab>('info');
@@ -44,7 +47,7 @@ export default function MissionDetail() {
 
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button className="btn btn-primary btn-full" onClick={() => update({ brouillon: false })}><Save size={18} /> {mission.brouillon ? 'Finaliser la mission' : 'Mission finalisée ✓'}</button>
-        <button className="btn btn-secondary btn-full" onClick={() => { /* PDF generation placeholder */ alert('Fiche mission PDF générée !'); }}><Send size={18} /> Envoyer fiche mission</button>
+        <button className="btn btn-secondary btn-full" onClick={() => generateRapportExpertise(mission, settings)}><Download size={18} /> Télécharger Rapport (PDF)</button>
         <button className="btn btn-danger btn-full" onClick={() => setShowDelete(true)}><Trash2 size={18} /> Supprimer</button>
       </div>
 
@@ -200,6 +203,24 @@ function InfoTab({ mission, update, clients }: any) {
           <MapPin size={14} color="var(--green)" /> {mission.geolocation.lat.toFixed(4)}, {mission.geolocation.lng.toFixed(4)}
         </div>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <div className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><PenTool size={16} /> Signature du client</div>
+        {mission.signature ? (
+          <div style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface2)', position: 'relative' }}>
+            <img src={mission.signature} alt="Signature" style={{ width: '100%', height: 150, objectFit: 'contain' }} />
+            <button 
+              className="btn-icon btn-secondary" 
+              style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, background: 'rgba(0,0,0,0.5)', color: 'white' }} 
+              onClick={() => update({ signature: undefined })}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <SignaturePad onSave={(base64) => update({ signature: base64 })} />
+        )}
+      </div>
     </div>
   );
 }
@@ -289,6 +310,7 @@ function DegatsTab({ mission, update }: any) {
 }
 
 function BillingTab({ mission, update, clients }: any) {
+  const settings = useSettingsStore();
   const [addingClient, setAddingClient] = useState(false);
   const [newClientId, setNewClientId] = useState('');
   const [newAmount, setNewAmount] = useState('');
@@ -323,7 +345,12 @@ function BillingTab({ mission, update, clients }: any) {
         <div key={i} className="card" style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div className="client-name">{c.clientName}</div>
-            <span className="mission-price">{c.montantTTC.toLocaleString('fr-FR')} €</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="mission-price">{c.montantTTC.toLocaleString('fr-FR')} €</span>
+              <button className="btn-icon btn-secondary" style={{ width: 32, height: 32 }} onClick={() => generateFacture(mission, settings, c.clientId)} title="Générer Facture PDF">
+                <Download size={14} />
+              </button>
+            </div>
           </div>
           <div className="chips" style={{ marginTop: 8 }}>
             {(['a_facturer', 'facture', 'paye'] as const).map(s => (

@@ -57,8 +57,14 @@ export interface Mission {
   clients: ClientFacturation[];
   documents: AppDocument[];
   brouillon: boolean;
+  signature?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Settings {
+  tva: number;
+  companyName: string;
 }
 
 export interface Client {
