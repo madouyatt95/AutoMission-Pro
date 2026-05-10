@@ -309,6 +309,7 @@ function DegatsTab({ mission, update }: any) {
       vue: view,
       type: damageType,
       commentaire: damageComment || undefined,
+      photos: [],
     };
     update({ degats: [...mission.degats, newDegat] });
     setAddingPart(null);
