@@ -67,7 +67,10 @@ export default function Dashboard() {
   };
 
   // Recent vehicles
-  const recentVehicles = [...new Set(missions.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).map(m => m.plaque))].slice(0, 5);
+  const recentVehicles = vehicles
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10)
+    .map(v => v.plaque);
   const carImages = [
     'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=400',
     'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=400',
