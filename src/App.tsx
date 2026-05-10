@@ -29,16 +29,18 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="top-header">
-        <Link to="/" className="header-title">
-          <Car size={24} color="var(--accent)" />
-          Chauffeur <span>Service</span>
-        </Link>
-        <button className="header-bell" onClick={() => navigate('/rappels')}>
-          <Bell />
-          {uncompletedRappels > 0 && <span className="bell-badge"></span>}
-        </button>
-      </header>
+      {!location.pathname.startsWith('/mission/') && (
+        <header className="top-header">
+          <Link to="/" className="header-title">
+            <Car size={24} color="var(--accent)" />
+            Chauffeur <span>Service</span>
+          </Link>
+          <button className="header-bell" onClick={() => navigate('/rappels')}>
+            <Bell />
+            {uncompletedRappels > 0 && <span className="bell-badge"></span>}
+          </button>
+        </header>
+      )}
 
       <Routes>
         <Route path="/" element={<Dashboard />} />
@@ -52,25 +54,27 @@ export default function App() {
         <Route path="/client/:id" element={<ClientDetail />} />
       </Routes>
 
-      <nav className="bottom-nav">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          if (item.isTerrain) {
+      {!location.pathname.startsWith('/mission/') && (
+        <nav className="bottom-nav">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            if (item.isTerrain) {
+              return (
+                <button key={item.path} className={`nav-terrain ${isActive ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+                  <div className="nav-terrain-btn"><item.icon /></div>
+                  <span>{item.label}</span>
+                </button>
+              );
+            }
             return (
-              <button key={item.path} className={`nav-terrain ${isActive ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-                <div className="nav-terrain-btn"><item.icon /></div>
+              <button key={item.path} className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+                <item.icon />
                 <span>{item.label}</span>
               </button>
             );
-          }
-          return (
-            <button key={item.path} className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <item.icon />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+          })}
+        </nav>
+      )}
     </div>
   );
 }

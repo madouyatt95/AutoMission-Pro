@@ -20,6 +20,8 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Mission n° ${mission.id.slice(0,8).toUpperCase()} - ${new Date(mission.dateTime).toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Type : ${mission.type.toUpperCase()}`, 105, 36, { align: 'center' });
 
   // Infos Véhicule
   doc.setTextColor('#000000');

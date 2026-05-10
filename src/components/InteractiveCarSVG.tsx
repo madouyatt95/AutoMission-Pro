@@ -46,9 +46,9 @@ export default function InteractiveCarSVG({ view, onPartClick }: Props) {
             
             <path d="M 100,250 C 100,200 150,180 230,170 L 230,300 L 100,300 Z" {...partStyle(`Aile avant ${side}`)} onMouseEnter={() => setHoveredPart(`Aile avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Aile avant ${side}`)} />
             
-            {/* Clickable Wheels */}
-            <circle cx="180" cy="300" r="45" {...partStyle(`Roue avant ${side}`)} onMouseEnter={() => setHoveredPart(`Roue avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Roue avant ${side}`)} />
-            <circle cx="180" cy="300" r="30" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="4" pointerEvents="none" />
+            {/* Pneu & Jante Avant */}
+            <circle cx="180" cy="300" r="45" {...partStyle(`Pneu avant ${side}`)} onMouseEnter={() => setHoveredPart(`Pneu avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Pneu avant ${side}`)} />
+            <circle cx="180" cy="300" r="28" {...partStyle(`Jante avant ${side}`)} onMouseEnter={() => setHoveredPart(`Jante avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Jante avant ${side}`)} />
             
             <path d="M 230,170 L 400,170 L 400,300 L 230,300 Z" {...partStyle(`Porte avant ${side}`)} onMouseEnter={() => setHoveredPart(`Porte avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Porte avant ${side}`)} />
             
@@ -56,8 +56,9 @@ export default function InteractiveCarSVG({ view, onPartClick }: Props) {
             
             <path d="M 580,170 C 650,170 700,180 770,260 L 770,300 L 580,300 Z" {...partStyle(`Aile arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Aile arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Aile arrière ${side}`)} />
             
-            <circle cx="650" cy="300" r="45" {...partStyle(`Roue arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Roue arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Roue arrière ${side}`)} />
-            <circle cx="650" cy="300" r="30" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="4" pointerEvents="none" />
+            {/* Pneu & Jante Arrière */}
+            <circle cx="650" cy="300" r="45" {...partStyle(`Pneu arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Pneu arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Pneu arrière ${side}`)} />
+            <circle cx="650" cy="300" r="28" {...partStyle(`Jante arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Jante arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Jante arrière ${side}`)} />
 
             <rect x="230" y="300" width="350" height="15" {...partStyle(`Bas de caisse ${side}`)} onMouseEnter={() => setHoveredPart(`Bas de caisse ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Bas de caisse ${side}`)} />
             
