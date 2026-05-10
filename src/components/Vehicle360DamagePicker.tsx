@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { VehicleView, Degat, DAMAGE_TYPES, DamageType } from '../types';
+import { Degat, DAMAGE_TYPES, DamageType, VehicleView } from '../types';
 import { Plus, Camera, X } from 'lucide-react';
+import SafeModal from './SafeModal';
 
 type ExtendedView = 'avant' | 'avant_droit' | 'droite' | 'arriere_droit' | 'arriere' | 'arriere_gauche' | 'gauche' | 'avant_gauche' | 'dessus';
 
@@ -24,13 +25,13 @@ const VIEW_ORDER: { key: ExtendedView; label: string; mapTo: VehicleView }[] = [
 
 const ZONES: Record<string, string[]> = {
   avant: ['Capot', 'Pare-choc avant', 'Phares', 'Calandre', 'Pare-brise'],
-  avant_droit: ['Aile avant droite', 'Phare droit', 'Pare-choc avant droit', 'Rétroviseur droit'],
-  droite: ['Porte avant droite', 'Porte arrière droite', 'Aile avant droite', 'Aile arrière droite', 'Bas de caisse droit', 'Rétroviseur droit'],
-  arriere_droit: ['Aile arrière droite', 'Feu arrière droit', 'Pare-choc arrière droit'],
+  avant_droit: ['Aile avant droite', 'Phare droit', 'Pare-choc avant droit', 'Rétroviseur droit', 'Jante avant droite'],
+  droite: ['Porte avant droite', 'Porte arrière droite', 'Aile avant droite', 'Aile arrière droite', 'Bas de caisse droit', 'Rétroviseur droit', 'Jante avant droite', 'Jante arrière droite'],
+  arriere_droit: ['Aile arrière droite', 'Feu arrière droit', 'Pare-choc arrière droit', 'Jante arrière droite'],
   arriere: ['Coffre', 'Pare-choc arrière', 'Feux arrière', 'Lunette arrière'],
-  arriere_gauche: ['Aile arrière gauche', 'Feu arrière gauche', 'Pare-choc arrière gauche'],
-  gauche: ['Porte avant gauche', 'Porte arrière gauche', 'Aile avant gauche', 'Aile arrière gauche', 'Bas de caisse gauche', 'Rétroviseur gauche'],
-  avant_gauche: ['Aile avant gauche', 'Phare gauche', 'Pare-choc avant gauche', 'Rétroviseur gauche'],
+  arriere_gauche: ['Aile arrière gauche', 'Feu arrière gauche', 'Pare-choc arrière gauche', 'Jante arrière gauche'],
+  gauche: ['Porte avant gauche', 'Porte arrière gauche', 'Aile avant gauche', 'Aile arrière gauche', 'Bas de caisse gauche', 'Rétroviseur gauche', 'Jante avant gauche', 'Jante arrière gauche'],
+  avant_gauche: ['Aile avant gauche', 'Phare gauche', 'Pare-choc avant gauche', 'Rétroviseur gauche', 'Jante avant gauche'],
   dessus: ['Toit', 'Capot', 'Coffre', 'Pare-brise', 'Vitres latérales'],
 };
 
@@ -84,8 +85,10 @@ function CarSVG({ view, zoneCounts, onZone }: { view: ExtendedView; zoneCounts: 
             { x: 245, y: 92, w: 60, h: 42 },
             { x: 115, y: 140, w: 130, h: 13 },
             { x: 55, y: 65, w: 30, h: 22 },
+            { x: 70, y: 140, w: 40, h: 40 }, // Jante avant
+            { x: 230, y: 140, w: 40, h: 40 }, // Jante arrière
           ];
-          const r = rects[i] || { x: 50 + i * 45, y: 90, w: 40, h: 40 };
+          const r = rects[i] || { x: 50 + i * 40, y: 90, w: 35, h: 35 };
           return (
             <g key={z} onClick={() => onZone(z)} style={{ cursor: 'pointer' }}>
               <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="3" fill={getZoneColor(zoneCounts[z] || 0)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4" className="car-zone" />
@@ -125,12 +128,14 @@ function CarSVG({ view, zoneCounts, onZone }: { view: ExtendedView; zoneCounts: 
   );
 }
 
-export default function InteractiveCar({ degats, onAddDegat, onRemoveDegat }: Props) {
+export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDegat }: Props) {
   const [viewIdx, setViewIdx] = useState(0);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
   const [damageType, setDamageType] = useState<DamageType>('rayure');
   const [comment, setComment] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const touchStart = useRef(0);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const currentView = VIEW_ORDER[viewIdx];
 
@@ -156,6 +161,21 @@ export default function InteractiveCar({ degats, onAddDegat, onRemoveDegat }: Pr
     }
   };
 
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setPhotos(p => [...p, ev.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
   const handleAddDamage = () => {
     if (!selectedZone) return;
     onAddDegat({
@@ -163,11 +183,12 @@ export default function InteractiveCar({ degats, onAddDegat, onRemoveDegat }: Pr
       vue: currentView.mapTo,
       type: damageType,
       commentaire: comment || undefined,
-      photos: [],
+      photos: photos.map((dataUrl, idx) => ({ id: Date.now().toString() + idx, dataUrl, timestamp: new Date().toISOString() })),
     });
     setSelectedZone(null);
     setComment('');
     setDamageType('rayure');
+    setPhotos([]);
   };
 
   const zoneDegats = selectedZone ? degats.filter(d => d.piece === selectedZone) : [];
@@ -206,47 +227,71 @@ export default function InteractiveCar({ degats, onAddDegat, onRemoveDegat }: Pr
         <span style={{ color: 'var(--text2)' }}>Total dégâts : <strong style={{ color: degats.length > 0 ? 'var(--red)' : 'var(--green)' }}>{degats.length}</strong></span>
       </div>
 
-      {/* Zone detail modal */}
-      {selectedZone && (
-        <div className="modal-overlay" onClick={() => setSelectedZone(null)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">{selectedZone}</h3>
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhoto} />
 
-            {/* Existing damages on this zone */}
-            {zoneDegats.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>DÉGÂTS EXISTANTS ({zoneDegats.length})</div>
-                {zoneDegats.map(d => (
-                  <div key={d.id} className="damage-item">
-                    <div className="damage-item-info">
-                      <div className="damage-item-piece">{DAMAGE_TYPES[d.type]}</div>
-                      {d.commentaire && <div className="damage-item-type">{d.commentaire}</div>}
-                    </div>
-                    <button onClick={() => onRemoveDegat(d.id)} style={{ background: 'rgba(255,51,102,0.1)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add new damage */}
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>AJOUTER UN DÉGÂT</div>
-            <div className="damage-type-chips" style={{ marginBottom: 12 }}>
-              {(Object.entries(DAMAGE_TYPES) as [DamageType, string][]).map(([k, v]) => (
-                <button key={k} className={`chip ${damageType === k ? 'active' : ''}`} onClick={() => setDamageType(k)} style={{ fontSize: 12, padding: '6px 12px' }}>
-                  {v}
+      {/* SafeModal for Damage Zone */}
+      <SafeModal
+        isOpen={selectedZone !== null}
+        onClose={() => { setSelectedZone(null); setPhotos([]); setComment(''); setDamageType('rayure'); }}
+        title={selectedZone || ''}
+        actions={
+          <button className="btn btn-primary btn-full" onClick={handleAddDamage}>
+            <Plus size={16} /> Valider le dégât
+          </button>
+        }
+      >
+        {/* Existing damages on this zone */}
+        {zoneDegats.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>DÉGÂTS EXISTANTS ({zoneDegats.length})</div>
+            {zoneDegats.map(d => (
+              <div key={d.id} className="damage-item" style={{ marginBottom: 8 }}>
+                <div className="damage-item-info">
+                  <div className="damage-item-piece">{DAMAGE_TYPES[d.type]}</div>
+                  {d.commentaire && <div className="damage-item-type">{d.commentaire}</div>}
+                  {d.photos && d.photos.length > 0 && <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>📷 {d.photos.length} photo(s)</div>}
+                </div>
+                <button onClick={() => onRemoveDegat(d.id)} style={{ background: 'rgba(255,51,102,0.1)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  <X size={14} />
                 </button>
-              ))}
-            </div>
-            <input className="input" placeholder="Commentaire (optionnel)" value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: 12 }} />
-            <button className="btn btn-primary btn-full" onClick={handleAddDamage}>
-              <Plus size={16} /> Ajouter ce dégât
-            </button>
+              </div>
+            ))}
           </div>
+        )}
+
+        {/* Add new damage */}
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>AJOUTER UN DÉGÂT</div>
+        <div className="damage-type-chips" style={{ marginBottom: 16 }}>
+          {(Object.entries(DAMAGE_TYPES) as [DamageType, string][]).map(([k, v]) => (
+            <button key={k} className={`chip ${damageType === k ? 'active' : ''}`} onClick={() => setDamageType(k)} style={{ fontSize: 12, padding: '6px 12px' }}>
+              {v}
+            </button>
+          ))}
         </div>
-      )}
+        
+        <label className="input-label">Commentaire</label>
+        <input className="input" placeholder="Ex: rayure profonde..." value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: 16 }} />
+        
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <label className="input-label" style={{ margin: 0 }}>Photos ({photos.length})</label>
+          <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => fileRef.current?.click()}><Camera size={14} /> Ajouter</button>
+        </div>
+        
+        {photos.length > 0 && (
+          <div className="photo-grid" style={{ marginBottom: 16 }}>
+            {photos.map((p, i) => (
+              <div key={i} className="photo-thumb" style={{ position: 'relative' }}>
+                <img src={p} alt="" />
+                <button 
+                  onClick={() => setPhotos(photos.filter((_, idx) => idx !== i))}
+                  style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </SafeModal>
     </div>
   );
 }

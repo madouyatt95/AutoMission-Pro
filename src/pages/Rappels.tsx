@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Check, Bell, RefreshCw, Calendar } from 'lucide-react';
 import { useRappelStore, useClientStore } from '../store';
 import { ReminderRepeat } from '../types';
+import SafeModal from '../components/SafeModal';
 
 export default function Rappels() {
   const { rappels, addRappel, toggleComplete, deleteRappel } = useRappelStore();
@@ -93,21 +94,19 @@ export default function Rappels() {
 
       {filtered.length === 0 && <div className="empty-state"><Bell size={48} /><p>Aucun rappel</p></div>}
 
-      {adding && (
-        <div className="modal-overlay" onClick={() => setAdding(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Nouveau rappel</h3>
-            <div className="input-group"><label className="input-label">Titre *</label><input className="input" value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} autoFocus /></div>
-            <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
-            <div className="input-group"><label className="input-label">Répétition</label>
-              <div className="chips">{(['unique', 'hebdomadaire', 'mensuelle'] as ReminderRepeat[]).map(r => (<button key={r} className={`chip ${form.repetition === r ? 'active' : ''}`} onClick={() => setForm({ ...form, repetition: r })}>{repLabels[r]}</button>))}</div>
-            </div>
-            <div className="input-group"><label className="input-label">Véhicule (optionnel)</label><input className="input" placeholder="AB-123-CD" value={form.vehiculePlaque} onChange={e => setForm({ ...form, vehiculePlaque: e.target.value.toUpperCase() })} /></div>
-            <button className="btn btn-primary btn-full" onClick={handleAdd}>Créer le rappel</button>
-          </div>
+      <SafeModal
+        isOpen={adding}
+        onClose={() => setAdding(false)}
+        title="Nouveau rappel"
+        actions={<button className="btn btn-primary btn-full" onClick={handleAdd}>Créer le rappel</button>}
+      >
+        <div className="input-group"><label className="input-label">Titre *</label><input className="input" value={form.titre} onChange={e => setForm({ ...form, titre: e.target.value })} autoFocus /></div>
+        <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Répétition</label>
+          <div className="chips">{(['unique', 'hebdomadaire', 'mensuelle'] as ReminderRepeat[]).map(r => (<button key={r} className={`chip ${form.repetition === r ? 'active' : ''}`} onClick={() => setForm({ ...form, repetition: r })}>{repLabels[r]}</button>))}</div>
         </div>
-      )}
+        <div className="input-group"><label className="input-label">Véhicule (optionnel)</label><input className="input" placeholder="AB-123-CD" value={form.vehiculePlaque} onChange={e => setForm({ ...form, vehiculePlaque: e.target.value.toUpperCase() })} /></div>
+      </SafeModal>
 
       <button className="fab" onClick={() => setAdding(true)}><Plus /></button>
     </div>

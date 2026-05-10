@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search, Plus, FileText, File, Shield, Receipt, FolderOpen, Database, MoreHorizontal } from 'lucide-react';
 import { useDocumentStore, useClientStore } from '../store';
 import { DOCUMENT_TYPES, DocumentType } from '../types';
+import SafeModal from '../components/SafeModal';
 
 const DOC_ICONS: Record<DocumentType, any> = {
   carte_grise: FileText,
@@ -101,19 +102,17 @@ export default function Documents() {
         )}
       </div>
 
-      {adding && (
-        <div className="modal-overlay" onClick={() => setAdding(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Importer un fichier</h3>
-            <div className="input-group"><label className="input-label">Nom du fichier *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
-            <div className="input-group"><label className="input-label">Catégorie</label><select className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as DocumentType })}>{(Object.entries(DOCUMENT_TYPES) as [DocumentType, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-            <div className="input-group"><label className="input-label">Plaque associée</label><input className="input" placeholder="AB-123-CD" value={form.vehiculePlaque} onChange={e => setForm({ ...form, vehiculePlaque: e.target.value.toUpperCase() })} /></div>
-            <div className="input-group"><label className="input-label">Client associé</label><select className="input" value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}><option value="">— Aucun —</option>{clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</select></div>
-            <button className="btn btn-primary btn-full" onClick={handleAdd}>Sauvegarder</button>
-          </div>
-        </div>
-      )}
+      <SafeModal
+        isOpen={adding}
+        onClose={() => setAdding(false)}
+        title="Importer un fichier"
+        actions={<button className="btn btn-primary btn-full" onClick={handleAdd}>Sauvegarder</button>}
+      >
+        <div className="input-group"><label className="input-label">Nom du fichier *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
+        <div className="input-group"><label className="input-label">Catégorie</label><select className="input" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as DocumentType })}>{(Object.entries(DOCUMENT_TYPES) as [DocumentType, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+        <div className="input-group"><label className="input-label">Plaque associée</label><input className="input" placeholder="AB-123-CD" value={form.vehiculePlaque} onChange={e => setForm({ ...form, vehiculePlaque: e.target.value.toUpperCase() })} /></div>
+        <div className="input-group"><label className="input-label">Client associé</label><select className="input" value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}><option value="">— Aucun —</option>{clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}</select></div>
+      </SafeModal>
 
       <button className="fab" onClick={() => setAdding(true)}><Plus /></button>
     </div>

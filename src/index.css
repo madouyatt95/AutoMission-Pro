@@ -243,9 +243,51 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
 .section-title svg { color: var(--accent); filter: drop-shadow(0 0 5px var(--accent)); }
 .section-link { font-size: 13px; color: var(--accent); font-weight: 700; cursor: pointer; background: none; border: none; }
 
-/* Modals */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 9999; display: flex; align-items: flex-end; justify-content: center; animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.modal-sheet { background: rgba(15,20,25,0.95); backdrop-filter: blur(20px); border-radius: 30px 30px 0 0; padding: 24px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); max-height: 90vh; width: 100%; max-width: 500px; overflow-y: auto; border-top: 1px solid var(--border-light); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
+/* Safe Modals */
+.safe-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  padding-bottom: 0; /* Let the content handle the safe area if full width sheet, but user requested 16px padding on overlay. Since we want a bottom sheet, let's use 0 horizontally for full width, or follow user CSS strictly. User CSS: padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); */
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (max-width: 600px) {
+  .safe-modal-overlay { padding: 0; }
+  .safe-modal-content { border-radius: 24px 24px 0 0; }
+}
+
+.safe-modal-content {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  background: var(--bg); /* Use theme bg instead of strict white */
+  position: relative;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-top: 1px solid var(--border-light);
+}
+
+.safe-modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--bg);
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
 .modal-handle { width: 40px; height: 5px; background: var(--surface3); border-radius: 3px; margin: 0 auto 24px; }
 .modal-title { font-size: 22px; font-weight: 900; margin-bottom: 20px; }
 

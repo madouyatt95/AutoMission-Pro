@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Phone, Mail, Building, Briefcase } from 'lucide-react';
 import { useClientStore, useMissionStore } from '../store';
+import SafeModal from '../components/SafeModal';
 
 export default function Clients() {
   const { clients, addClient } = useClientStore();
@@ -94,19 +95,17 @@ export default function Clients() {
         )}
       </div>
 
-      {adding && (
-        <div className="modal-overlay" onClick={() => setAdding(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Nouveau partenaire</h3>
-            <div className="input-group"><label className="input-label">Nom d'entreprise *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
-            <div className="input-group"><label className="input-label">Téléphone</label><input className="input" type="tel" value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} /></div>
-            <div className="input-group"><label className="input-label">Email Pro (pour le logo)</label><input className="input" type="email" placeholder="contact@entreprise.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="input-group"><label className="input-label">Adresse</label><input className="input" value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })} /></div>
-            <button className="btn btn-primary btn-full" onClick={handleAdd}>Créer le client</button>
-          </div>
-        </div>
-      )}
+      <SafeModal
+        isOpen={adding}
+        onClose={() => setAdding(false)}
+        title="Nouveau partenaire"
+        actions={<button className="btn btn-primary btn-full" onClick={handleAdd}>Créer le client</button>}
+      >
+        <div className="input-group"><label className="input-label">Nom d'entreprise *</label><input className="input" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} autoFocus /></div>
+        <div className="input-group"><label className="input-label">Téléphone</label><input className="input" type="tel" value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Email Pro (pour le logo)</label><input className="input" type="email" placeholder="contact@entreprise.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+        <div className="input-group"><label className="input-label">Adresse</label><input className="input" value={form.adresse} onChange={e => setForm({ ...form, adresse: e.target.value })} /></div>
+      </SafeModal>
 
       <button className="fab" onClick={() => setAdding(true)}><Plus /></button>
     </div>

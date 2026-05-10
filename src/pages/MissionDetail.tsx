@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool, Bell } from 'lucide-react';
 import { useMissionStore, useClientStore, useSettingsStore, useRappelStore } from '../store';
 import SignaturePad from '../components/SignaturePad';
+import SafeModal from '../components/SafeModal';
+import Vehicle360DamagePicker from '../components/Vehicle360DamagePicker';
 import { generateRapportExpertise, generateFacture } from '../utils/exportPdf';
 import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
 
@@ -83,51 +85,52 @@ export default function MissionDetail() {
       </div>
 
       {/* PDF Options Modal */}
-      {showPdfOptions && (
-        <div className="modal-overlay" onClick={() => { setShowPdfOptions(false); setPdfClientId(null); }}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Options du rapport PDF</h3>
-            {pdfClientId && <p style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, fontWeight: 700 }}>Rapport pour : {mission.clients.find(c => c.clientId === pdfClientId)?.clientName}</p>}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-              {([
-                ['inclureNotes', 'Inclure les notes'],
-                ['inclurePrix', 'Inclure le prix TTC'],
-                ['inclurePhotos', 'Inclure les photos'],
-                ['inclureDegats', 'Inclure les dégâts'],
-                ['inclureDocs', 'Inclure les documents'],
-                ['inclureGeo', 'Inclure la géolocalisation'],
-                ['inclureSignature', 'Inclure les signatures'],
-                ['inclureClient', 'Inclure coordonnées client'],
-              ] as [string, string][]).map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
-                  <div onClick={() => setPdfOpts(prev => ({ ...prev, [key]: !(prev as any)[key] }))} style={{ width: 48, height: 28, borderRadius: 14, background: (pdfOpts as any)[key] ? 'var(--accent)' : 'var(--surface3)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: (pdfOpts as any)[key] ? 23 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                  </div>
-                </label>
-              ))}
-            </div>
-            <button className="btn btn-primary btn-full" onClick={() => { generateRapportExpertise(mission, settings); setShowPdfOptions(false); setPdfClientId(null); }}>
-              <Download size={16} /> Générer le PDF
-            </button>
-          </div>
+      <SafeModal
+        isOpen={showPdfOptions}
+        onClose={() => { setShowPdfOptions(false); setPdfClientId(null); }}
+        title="Options du rapport PDF"
+        subtitle={pdfClientId ? <p style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>Rapport pour : {mission.clients.find(c => c.clientId === pdfClientId)?.clientName}</p> : undefined}
+        actions={
+          <button className="btn btn-primary btn-full" onClick={() => { generateRapportExpertise(mission, settings); setShowPdfOptions(false); setPdfClientId(null); }}>
+            <Download size={16} /> Générer le PDF
+          </button>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {([
+            ['inclureNotes', 'Inclure les notes'],
+            ['inclurePrix', 'Inclure le prix TTC'],
+            ['inclurePhotos', 'Inclure les photos'],
+            ['inclureDegats', 'Inclure les dégâts'],
+            ['inclureDocs', 'Inclure les documents'],
+            ['inclureGeo', 'Inclure la géolocalisation'],
+            ['inclureSignature', 'Inclure les signatures'],
+            ['inclureClient', 'Inclure coordonnées client'],
+          ] as [string, string][]).map(([key, label]) => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
+              <div onClick={() => setPdfOpts(prev => ({ ...prev, [key]: !(prev as any)[key] }))} style={{ width: 48, height: 28, borderRadius: 14, background: (pdfOpts as any)[key] ? 'var(--accent)' : 'var(--surface3)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: (pdfOpts as any)[key] ? 23 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+              </div>
+            </label>
+          ))}
         </div>
-      )}
+      </SafeModal>
 
-      {showDelete && (
-        <div className="modal-overlay" onClick={() => setShowDelete(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Supprimer cette mission ?</h3>
-            <p style={{ color: 'var(--text2)', marginBottom: 16 }}>Cette action est irréversible.</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowDelete(false)}>Annuler</button>
-              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => { deleteMission(mission.id); navigate('/missions'); }}>Supprimer</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SafeModal
+        isOpen={showDelete}
+        onClose={() => setShowDelete(false)}
+        title="Supprimer cette mission ?"
+        subtitle={<p style={{ color: 'var(--text2)' }}>Cette action est irréversible.</p>}
+        actions={
+          <>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowDelete(false)}>Annuler</button>
+            <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => { deleteMission(mission.id); navigate('/missions'); }}>Supprimer</button>
+          </>
+        }
+      >
+        {/* No additional content needed */}
+      </SafeModal>
     </div>
   );
 }
@@ -322,102 +325,31 @@ function InfoTab({ mission, update, clients }: any) {
         )}
       </div>
 
-      {addingAlert && (
-        <div className="modal-overlay" onClick={() => setAddingAlert(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Nouveau rappel</h3>
-            <div className="input-group"><label className="input-label">Titre *</label><input className="input" value={alertForm.titre} onChange={e => setAlertForm({ ...alertForm, titre: e.target.value })} autoFocus /></div>
-            <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={alertForm.date} onChange={e => setAlertForm({ ...alertForm, date: e.target.value })} /></div>
-            <button className="btn btn-primary btn-full" onClick={handleManualAlert}>Créer le rappel</button>
-          </div>
-        </div>
-      )}
+      <SafeModal
+        isOpen={addingAlert}
+        onClose={() => setAddingAlert(false)}
+        title="Nouveau rappel"
+        actions={<button className="btn btn-primary btn-full" onClick={handleManualAlert}>Créer le rappel</button>}
+      >
+        <div className="input-group"><label className="input-label">Titre *</label><input className="input" value={alertForm.titre} onChange={e => setAlertForm({ ...alertForm, titre: e.target.value })} autoFocus /></div>
+        <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={alertForm.date} onChange={e => setAlertForm({ ...alertForm, date: e.target.value })} /></div>
+      </SafeModal>
     </div>
   );
 }
 
 function DegatsTab({ mission, update }: any) {
-  const [view, setView] = useState<VehicleView>('avant');
-  const [addingPart, setAddingPart] = useState<string | null>(null);
-  const [damageType, setDamageType] = useState<DamageType>('rayure');
-  const [damageComment, setDamageComment] = useState('');
-
-  const views: [VehicleView, string][] = [['avant', 'Avant'], ['arriere', 'Arrière'], ['gauche', 'Gauche'], ['droite', 'Droite'], ['dessus', 'Dessus']];
-  const parts = VEHICLE_PARTS[view];
-
-  const addDamage = () => {
-    if (!addingPart) return;
-    const newDegat: Degat = {
-      id: crypto.randomUUID?.() || Date.now().toString(),
-      piece: addingPart,
-      vue: view,
-      type: damageType,
-      commentaire: damageComment || undefined,
-      photos: [],
-    };
-    update({ degats: [...mission.degats, newDegat] });
-    setAddingPart(null);
-    setDamageComment('');
+  const removeDamage = (id: string) => {
+    update({ degats: mission.degats.filter((d: Degat) => d.id !== id) });
   };
-
-  const removeDamage = (degatId: string) => {
-    update({ degats: mission.degats.filter((d: Degat) => d.id !== degatId) });
-  };
-
-  const getDamageCount = (part: string) => mission.degats.filter((d: Degat) => d.piece === part && d.vue === view).length;
 
   return (
     <div>
-      <div className="damage-views">
-        {views.map(([k, l]) => (
-          <button key={k} className={`damage-view-btn ${view === k ? 'active' : ''}`} onClick={() => setView(k)}>{l}</button>
-        ))}
-      </div>
-
-      <div className="damage-parts">
-        {parts.map(part => (
-          <button key={part} className="damage-part-btn" onClick={() => setAddingPart(part)}>
-            {part}
-            {getDamageCount(part) > 0 && <span className="count">{getDamageCount(part)}</span>}
-          </button>
-        ))}
-      </div>
-
-      {addingPart && (
-        <div className="modal-overlay" onClick={() => setAddingPart(null)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Dégât — {addingPart}</h3>
-            <div className="input-label">Type de dégât</div>
-            <div className="damage-type-chips">
-              {(Object.entries(DAMAGE_TYPES) as [DamageType, string][]).map(([k, v]) => (
-                <button key={k} className={`chip ${damageType === k ? 'active' : ''}`} onClick={() => setDamageType(k)}>{v}</button>
-              ))}
-            </div>
-            <div className="input-group">
-              <label className="input-label">Commentaire</label>
-              <textarea className="input textarea" placeholder="Détails..." value={damageComment} onChange={e => setDamageComment(e.target.value)} />
-            </div>
-            <button className="btn btn-primary btn-full" onClick={addDamage}><Plus size={18} /> Ajouter le dégât</button>
-          </div>
-        </div>
-      )}
-
-      {mission.degats.length > 0 && (
-        <div className="damage-list">
-          <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Dégâts enregistrés ({mission.degats.length})</h4>
-          {mission.degats.map((d: Degat) => (
-            <div key={d.id} className="damage-item">
-              <div className="damage-item-info">
-                <div className="damage-item-piece">{d.piece}</div>
-                <div className="damage-item-type">{DAMAGE_TYPES[d.type]}{d.commentaire ? ` — ${d.commentaire}` : ''}</div>
-              </div>
-              <button className="btn-icon btn-secondary" style={{ width: 32, height: 32 }} onClick={() => removeDamage(d.id)}><X size={14} /></button>
-            </div>
-          ))}
-        </div>
-      )}
+      <Vehicle360DamagePicker
+        degats={mission.degats}
+        onAddDegat={(d) => update({ degats: [...mission.degats, { ...d, id: Date.now().toString() }] })}
+        onRemoveDegat={removeDamage}
+      />
     </div>
   );
 }

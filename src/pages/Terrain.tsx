@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Search, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { useMissionStore, useVehicleStore, useClientStore, useCustomTypeStore } from '../store';
 import { MISSION_TYPES, CAR_BRANDS, FUEL_TYPES, GEARBOX_TYPES, VEHICLE_COLORS } from '../types';
+import SafeModal from '../components/SafeModal';
 
 declare global {
   interface Window { SpeechRecognition: any; webkitSpeechRecognition: any; }
@@ -308,24 +309,24 @@ export default function Terrain() {
       </div>
 
       {/* Add custom type modal */}
-      {showAddType && (
-        <div className="modal-overlay" onClick={() => setShowAddType(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <h3 className="modal-title">Nouveau type de mission</h3>
-            <div className="input-group"><label className="input-label">Nom</label><input className="input" value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Ex: Diagnostic" autoFocus /></div>
-            <div className="input-group">
-              <label className="input-label">Couleur</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {['#ff5500', '#00bfff', '#10b981', '#f59e0b', '#ef4444', '#a855f7'].map(c => (
-                  <div key={c} onClick={() => setNewTypeColor(c)} style={{ width: 36, height: 36, borderRadius: 8, background: c, cursor: 'pointer', border: newTypeColor === c ? '3px solid white' : '3px solid transparent' }} />
-                ))}
-              </div>
-            </div>
-            <button className="btn btn-primary btn-full" onClick={handleAddType}>Créer le type</button>
+      <SafeModal
+        isOpen={showAddType}
+        onClose={() => setShowAddType(false)}
+        title="Nouveau type de mission"
+        actions={
+          <button className="btn btn-primary btn-full" onClick={handleAddType}>Créer le type</button>
+        }
+      >
+        <div className="input-group"><label className="input-label">Nom</label><input className="input" value={newTypeName} onChange={e => setNewTypeName(e.target.value)} placeholder="Ex: Diagnostic" autoFocus /></div>
+        <div className="input-group">
+          <label className="input-label">Couleur</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['#ff5500', '#00bfff', '#10b981', '#f59e0b', '#ef4444', '#a855f7'].map(c => (
+              <div key={c} onClick={() => setNewTypeColor(c)} style={{ width: 36, height: 36, borderRadius: 8, background: c, cursor: 'pointer', border: newTypeColor === c ? '3px solid white' : '3px solid transparent' }} />
+            ))}
           </div>
         </div>
-      )}
+      </SafeModal>
 
       {/* Photo & Voice cards */}
       <div className="terrain-grid-cards">
