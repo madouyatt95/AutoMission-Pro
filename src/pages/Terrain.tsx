@@ -181,7 +181,7 @@ export default function Terrain() {
   }
 
   return (
-    <div className="page">
+    <div className="page" style={{ paddingBottom: 150 }}>
       {/* OCR Scanner Modal (Simulation) */}
       {isScanning && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
@@ -200,7 +200,7 @@ export default function Terrain() {
         </div>
       )}
 
-      <div className="terrain-plaque-container" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)', padding: '10px 0' }}>
+      <div className="terrain-plaque-container" style={{ padding: '0 0 16px' }}>
         <div className="eu-plate">
           <div className="eu-band">
             <div className="eu-stars"></div>
@@ -240,9 +240,9 @@ export default function Terrain() {
 
       <div className="section" style={{ marginBottom: 16 }}>
         <div className="input-label">TYPE DE MISSION</div>
-        <div className="terrain-types">
+        <div className="terrain-types" style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 8, scrollbarWidth: 'none' }}>
           {MISSION_TYPES.map(t => (
-            <button key={t} className={`chip ${type === t ? 'active' : ''}`} onClick={() => setType(t)} style={{ padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button key={t} className={`chip ${type === t ? 'active' : ''}`} onClick={() => setType(t)} style={{ padding: '8px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
               {t === 'Expertise' && <Search size={14} />}
               {t === 'Révision' && <Zap size={14} />}
               {t}
