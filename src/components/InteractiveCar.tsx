@@ -57,7 +57,7 @@ function CarSVG({ view, zoneCounts, onZone }: { view: ExtendedView; zoneCounts: 
             <g key={z} onClick={() => onZone(z)} style={{ cursor: 'pointer' }}>
               <rect x="50" y={y} width="100" height="50" rx="6" fill={getZoneColor(zoneCounts[z] || 0)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4" className="car-zone" />
               <text x="100" y={y + 30} textAnchor="middle" fill="var(--text2)" fontSize="9" fontWeight="700" pointerEvents="none">{z.toUpperCase()}</text>
-              {(zoneCounts[z] || 0) > 0 && <circle cx="145" cy={y + 10} r="8" fill="var(--red)" />) }
+              {(zoneCounts[z] || 0) > 0 && <circle cx="145" cy={y + 10} r="8" fill="var(--red)" />}
               {(zoneCounts[z] || 0) > 0 && <text x="145" y={y + 14} textAnchor="middle" fill="white" fontSize="9" fontWeight="800" pointerEvents="none">{zoneCounts[z]}</text>}
             </g>
           );
