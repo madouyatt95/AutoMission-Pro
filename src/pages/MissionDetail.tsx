@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool } from 'lucide-react';
-import { useMissionStore, useClientStore, useSettingsStore } from '../store';
+import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool, Bell } from 'lucide-react';
+import { useMissionStore, useClientStore, useSettingsStore, useRappelStore } from '../store';
 import SignaturePad from '../components/SignaturePad';
 import { generateRapportExpertise, generateFacture } from '../utils/exportPdf';
 import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
@@ -14,6 +14,7 @@ export default function MissionDetail() {
   const { missions, updateMission, deleteMission, duplicateMission } = useMissionStore();
   const { clients } = useClientStore();
   const settings = useSettingsStore();
+  const { addRappel, rappels } = useRappelStore();
   const mission = missions.find(m => m.id === id);
 
   const [tab, setTab] = useState<Tab>('info');
@@ -21,7 +22,25 @@ export default function MissionDetail() {
 
   if (!mission) return <div className="page"><p>Mission introuvable</p><button className="btn btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Retour</button></div>;
 
-  const update = (u: any) => updateMission(mission.id, u);
+  const update = (u: any) => {
+    updateMission(mission.id, u);
+  };
+
+  const finalizeMission = () => {
+    update({ brouillon: false });
+    // Auto alert for billing
+    const alertExists = rappels.some(r => r.missionId === mission.id && r.titre.includes('Facturer'));
+    if (!alertExists) {
+      const date = new Date();
+      date.setDate(date.getDate() + settings.autoAlertDaysFacturation);
+      addRappel({
+        titre: `Facturer mission ${mission.plaque}`,
+        date: date.toISOString().split('T')[0],
+        missionId: mission.id,
+        vehiculePlaque: mission.plaque
+      });
+    }
+  };
 
   return (
     <div className="page">
@@ -46,7 +65,7 @@ export default function MissionDetail() {
       {tab === 'docs' && <DocsTab mission={mission} />}
 
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button className="btn btn-primary btn-full" onClick={() => update({ brouillon: false })}><Save size={18} /> {mission.brouillon ? 'Finaliser la mission' : 'Mission finalisée ✓'}</button>
+        <button className="btn btn-primary btn-full" onClick={finalizeMission}><Save size={18} /> {mission.brouillon ? 'Finaliser la mission' : 'Mission finalisée ✓'}</button>
         <button className="btn btn-secondary btn-full" onClick={() => generateRapportExpertise(mission, settings)}><Download size={18} /> Télécharger Rapport (PDF)</button>
         <button className="btn btn-danger btn-full" onClick={() => setShowDelete(true)}><Trash2 size={18} /> Supprimer</button>
       </div>
@@ -71,9 +90,41 @@ export default function MissionDetail() {
 function InfoTab({ mission, update, clients }: any) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [recording, setRecording] = useState(false);
+  const [addingAlert, setAddingAlert] = useState(false);
+  const [alertForm, setAlertForm] = useState({ titre: `Suivi mission ${mission.plaque}`, date: new Date().toISOString().split('T')[0] });
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef<number>(0);
+
+  const { addRappel, rappels } = useRappelStore();
+  const settings = useSettingsStore();
+
+  const handleStatusChange = (newStatus: MissionStatus) => {
+    update({ statut: newStatus });
+    if (newStatus === 'en_attente') {
+      const alertExists = rappels.some(r => r.missionId === mission.id && r.titre.includes('Relancer'));
+      if (!alertExists) {
+        const date = new Date();
+        date.setDate(date.getDate() + settings.autoAlertDaysRelance);
+        addRappel({
+          titre: `Relancer client pour ${mission.plaque}`,
+          date: date.toISOString().split('T')[0],
+          missionId: mission.id,
+          vehiculePlaque: mission.plaque
+        });
+      }
+    }
+  };
+
+  const handleManualAlert = () => {
+    addRappel({
+      titre: alertForm.titre,
+      date: alertForm.date,
+      missionId: mission.id,
+      vehiculePlaque: mission.plaque
+    });
+    setAddingAlert(false);
+  };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -117,9 +168,13 @@ function InfoTab({ mission, update, clients }: any) {
         <label className="input-label">Statut</label>
         <div className="chips">
           {(Object.entries(STATUS_CONFIG) as [MissionStatus, any][]).map(([key, cfg]) => (
-            <button key={key} className={`chip ${mission.statut === key ? 'active' : ''}`} style={mission.statut === key ? { background: cfg.bg, color: cfg.color, borderColor: cfg.color } : {}} onClick={() => update({ statut: key })}>{cfg.label}</button>
+            <button key={key} className={`chip ${mission.statut === key ? 'active' : ''}`} style={mission.statut === key ? { background: cfg.bg, color: cfg.color, borderColor: cfg.color } : {}} onClick={() => handleStatusChange(key)}>{cfg.label}</button>
           ))}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <button className="btn btn-secondary btn-full" onClick={() => setAddingAlert(true)}><Bell size={18} /> Programmer un rappel</button>
       </div>
 
       <div className="input-group">
@@ -221,6 +276,18 @@ function InfoTab({ mission, update, clients }: any) {
           <SignaturePad onSave={(base64) => update({ signature: base64 })} />
         )}
       </div>
+
+      {addingAlert && (
+        <div className="modal-overlay" onClick={() => setAddingAlert(false)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <h3 className="modal-title">Nouveau rappel</h3>
+            <div className="input-group"><label className="input-label">Titre *</label><input className="input" value={alertForm.titre} onChange={e => setAlertForm({ ...alertForm, titre: e.target.value })} autoFocus /></div>
+            <div className="input-group"><label className="input-label">Date</label><input className="input" type="date" value={alertForm.date} onChange={e => setAlertForm({ ...alertForm, date: e.target.value })} /></div>
+            <button className="btn btn-primary btn-full" onClick={handleManualAlert}>Créer le rappel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

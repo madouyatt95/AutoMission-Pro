@@ -200,7 +200,9 @@ export const useRappelStore = create<RappelStore>()(
 interface SettingsStore {
   tva: number;
   companyName: string;
-  updateSettings: (updates: Partial<{ tva: number; companyName: string }>) => void;
+  autoAlertDaysFacturation: number;
+  autoAlertDaysRelance: number;
+  updateSettings: (updates: Partial<{ tva: number; companyName: string; autoAlertDaysFacturation: number; autoAlertDaysRelance: number }>) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -208,6 +210,8 @@ export const useSettingsStore = create<SettingsStore>()(
     (set) => ({
       tva: 20,
       companyName: 'AutoMission Services',
+      autoAlertDaysFacturation: 1, // J+1 for billing after finalizing
+      autoAlertDaysRelance: 3,     // J+3 for following up on 'en_attente'
       updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
     }),
     { name: 'automission-settings' }
