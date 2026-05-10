@@ -15,7 +15,7 @@ export default function ClientDetail() {
   const client = clients.find(c => c.id === id);
   
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(client || { nom: '', email: '', telephone: '', adresse: '', siret: '', type: 'entreprise' as const, conditionsPaiement: '', notes: '' });
+  const [form, setForm] = useState<any>(client || { nom: '', email: '', telephone: '', adresse: '', siret: '', type: 'entreprise', conditionsPaiement: '', notes: '' });
 
   if (!client) return <div className="page"><p>Client introuvable</p><button className="btn btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Retour</button></div>;
 
