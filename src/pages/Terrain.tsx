@@ -175,6 +175,12 @@ export default function Terrain() {
       plaque: plaque.trim(),
       types: selectedTypes,
       type: selectedTypes[0],
+      prestations: selectedTypes.map(t => ({
+        id: crypto.randomUUID?.() || Date.now().toString() + Math.random(),
+        type: t,
+        prixTTC: 0,
+        statut: 'a_facturer'
+      })),
       photos,
       notesTexte: notes,
       geolocation: geo || undefined,

@@ -41,6 +41,7 @@ export const useMissionStore = create<MissionStore>()(
           geolocation: data.geolocation,
           statut: data.statut || 'a_facturer',
           clients: data.clients || [],
+          prestations: data.prestations || [],
           documents: data.documents || [],
           brouillon: data.brouillon ?? true,
           createdAt: now,
@@ -69,6 +70,7 @@ export const useMissionStore = create<MissionStore>()(
           dateTime: now,
           statut: 'a_facturer',
           brouillon: true,
+          prestations: mission.prestations.map(p => ({ ...p, id: uuidv4() })),
           createdAt: now,
           updatedAt: now,
         };

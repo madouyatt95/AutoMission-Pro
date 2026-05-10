@@ -59,6 +59,16 @@ export interface VoiceNote {
   timestamp: string;
 }
 
+// ==================== PRESTATION FACTURATION ====================
+export interface Prestation {
+  id: string;
+  type: string;
+  prixTTC: number;
+  clientId?: string;
+  clientName?: string;
+  statut: 'a_facturer' | 'facture' | 'paye';
+}
+
 // ==================== CLIENT FACTURATION ====================
 export interface ClientFacturation {
   clientId: string;
@@ -89,7 +99,8 @@ export interface Mission {
   prixManuel?: boolean;
   geolocation?: { lat: number; lng: number; address?: string };
   statut: MissionStatus;
-  clients: ClientFacturation[];
+  clients: ClientFacturation[]; // Keeping this for backward compatibility and general mission clients
+  prestations: Prestation[]; // The new detailed tasks for billing
   documents: AppDocument[];
   brouillon: boolean;
   signature?: string;

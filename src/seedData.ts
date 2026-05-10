@@ -135,6 +135,7 @@ function generateMissions(): Mission[] {
       geolocation: { lat: 48.8566 + (Math.random() - 0.5) * 0.5, lng: 2.3522 + (Math.random() - 0.5) * 0.5 },
       statut: statut,
       clients: missionClients,
+      prestations: [],
       documents: [],
       brouillon: false,
       createdAt: dt.toISOString(),

@@ -51,9 +51,14 @@ export default function MissionDetail() {
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button className="btn-icon btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
           <span className="mission-plaque">{mission.plaque}</span>
-          <span className="mission-type-badge" style={{ marginLeft: 8 }}>{mission.type}</span>
+          {(mission.prestations || []).map((p: any) => (
+            <span key={p.id} className="mission-type-badge">{p.type}</span>
+          ))}
+          {(!mission.prestations || mission.prestations.length === 0) && mission.type && (
+            <span className="mission-type-badge">{mission.type}</span>
+          )}
         </div>
         <button className="btn-icon btn-secondary" onClick={() => { duplicateMission(mission.id); navigate('/missions'); }}><Copy size={18} /></button>
       </div>
@@ -226,10 +231,18 @@ function InfoTab({ mission, update, clients }: any) {
       </div>
 
       <div className="input-group">
-        <label className="input-label">Type de mission</label>
-        <select className="input" value={mission.type} onChange={e => update({ type: e.target.value })}>
-          {MISSION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <label className="input-label">Prestations réalisées</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {(mission.prestations || []).map((p: any) => (
+            <div key={p.id} className="chip active" style={{ fontSize: 13, background: 'var(--surface2)', borderColor: 'var(--border)' }}>
+              {p.type}
+            </div>
+          ))}
+          {(!mission.prestations || mission.prestations.length === 0) && (
+            <div className="chip active">{mission.type}</div>
+          )}
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text2)', marginTop: 8 }}>Pour ajouter ou modifier des prestations, allez dans l'onglet Facturation.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -356,73 +369,127 @@ function DegatsTab({ mission, update }: any) {
 
 function BillingTab({ mission, update, clients }: any) {
   const settings = useSettingsStore();
-  const [addingClient, setAddingClient] = useState(false);
+  const [addingPrestation, setAddingPrestation] = useState(false);
+  const [newType, setNewType] = useState('');
   const [newClientId, setNewClientId] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
-  const addClientBilling = () => {
-    if (!newClientId || !newAmount) return;
+  const prestations = mission.prestations || [];
+
+  const addPrestation = () => {
+    if (!newType) return;
     const client = clients.find((c: any) => c.id === newClientId);
-    update({
-      clients: [...mission.clients, {
-        clientId: newClientId,
-        clientName: client?.nom || 'Inconnu',
-        montantTTC: parseFloat(newAmount),
-        facturationDifferee: false,
-        statut: 'a_facturer',
-        notesInternes: '',
-      }]
-    });
-    setAddingClient(false);
+    
+    // Update the mission.prestations
+    const updatedPrestations = [...prestations, {
+      id: crypto.randomUUID?.() || Date.now().toString(),
+      type: newType,
+      prixTTC: parseFloat(newAmount) || 0,
+      clientId: client?.id,
+      clientName: client?.nom,
+      statut: 'a_facturer'
+    }];
+    
+    // Also add to mission.types if not present
+    const updatedTypes = [...mission.types];
+    if (!updatedTypes.includes(newType)) updatedTypes.push(newType);
+
+    update({ prestations: updatedPrestations, types: updatedTypes });
+    setAddingPrestation(false);
+    setNewType('');
     setNewClientId('');
     setNewAmount('');
   };
 
-  const updateClientStatus = (idx: number, statut: string) => {
-    const updated = [...mission.clients];
-    updated[idx] = { ...updated[idx], statut };
-    update({ clients: updated });
+  const updatePrestation = (idx: number, updates: any) => {
+    const updated = [...prestations];
+    updated[idx] = { ...updated[idx], ...updates };
+    update({ prestations: updated });
   };
+
+  const removePrestation = (idx: number) => {
+    const updated = [...prestations];
+    updated.splice(idx, 1);
+    update({ prestations: updated });
+  };
+
+  // Group prestations by client for PDF generation
+  const clientGroups = prestations.reduce((acc: any, p: any) => {
+    const key = p.clientId || 'no_client';
+    if (!acc[key]) acc[key] = { clientName: p.clientName || 'Non assigné', clientId: p.clientId, total: 0 };
+    acc[key].total += p.prixTTC;
+    return acc;
+  }, {});
 
   return (
     <div>
-      {mission.clients.map((c: any, i: number) => (
-        <div key={i} className="card" style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="client-name">{c.clientName}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span className="mission-price">{c.montantTTC.toLocaleString('fr-FR')} €</span>
-              <button className="btn-icon btn-secondary" style={{ width: 32, height: 32 }} onClick={() => generateFacture(mission, settings, c.clientId)} title="Générer Facture PDF">
-                <Download size={14} />
-              </button>
+      {/* Generate Invoice Buttons by Client */}
+      {Object.values(clientGroups).map((g: any) => g.clientId ? (
+        <button key={g.clientId} className="btn btn-secondary btn-full" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }} onClick={() => generateFacture(mission, settings, g.clientId)}>
+          <span><Download size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} /> Facture pour {g.clientName}</span>
+          <span style={{ fontWeight: 800, color: 'var(--accent)' }}>{g.total.toLocaleString('fr-FR')} €</span>
+        </button>
+      ) : null)}
+
+      <div className="input-label" style={{ marginTop: 16, marginBottom: 8 }}>PRESTATIONS ({prestations.length})</div>
+
+      {prestations.map((p: any, i: number) => (
+        <div key={p.id || i} className="card" style={{ marginBottom: 10, padding: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{p.type}</div>
+            <button onClick={() => removePrestation(i)} style={{ background: 'none', border: 'none', color: 'var(--red)' }}><Trash2 size={16} /></button>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label">Prix TTC (€)</label>
+              <input className="input" type="number" step="0.01" value={p.prixTTC === 0 && !p.prixTTC ? '' : p.prixTTC} onChange={e => updatePrestation(i, { prixTTC: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label">Client facturé</label>
+              <select className="input" value={p.clientId || ''} onChange={e => {
+                const client = clients.find((c: any) => c.id === e.target.value);
+                updatePrestation(i, { clientId: client?.id, clientName: client?.nom });
+              }}>
+                <option value="">Non assigné</option>
+                {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              </select>
             </div>
           </div>
-          <div className="chips" style={{ marginTop: 8 }}>
+
+          <div className="chips">
             {(['a_facturer', 'facture', 'paye'] as const).map(s => (
-              <button key={s} className={`chip ${c.statut === s ? 'active' : ''}`} style={c.statut === s ? { background: STATUS_CONFIG[s].bg, color: STATUS_CONFIG[s].color, borderColor: STATUS_CONFIG[s].color } : {}} onClick={() => updateClientStatus(i, s)}>{STATUS_CONFIG[s].label}</button>
+              <button key={s} className={`chip ${p.statut === s ? 'active' : ''}`} style={{ ...(p.statut === s ? { background: STATUS_CONFIG[s].bg, color: STATUS_CONFIG[s].color, borderColor: STATUS_CONFIG[s].color } : {}), padding: '4px 10px', fontSize: 11 }} onClick={() => updatePrestation(i, { statut: s })}>{STATUS_CONFIG[s].label}</button>
             ))}
           </div>
         </div>
       ))}
 
-      {!addingClient ? (
-        <button className="btn btn-secondary btn-full" onClick={() => setAddingClient(true)}><Plus size={18} /> Ajouter un client</button>
+      {!addingPrestation ? (
+        <button className="btn btn-secondary btn-full" style={{ marginTop: 12 }} onClick={() => setAddingPrestation(true)}><Plus size={18} /> Ajouter une prestation</button>
       ) : (
-        <div className="card">
+        <div className="card" style={{ marginTop: 12 }}>
           <div className="input-group">
-            <label className="input-label">Client</label>
-            <select className="input" value={newClientId} onChange={e => setNewClientId(e.target.value)}>
+            <label className="input-label">Type de prestation</label>
+            <select className="input" value={newType} onChange={e => setNewType(e.target.value)}>
               <option value="">Sélectionner...</option>
-              {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              {MISSION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div className="input-group">
-            <label className="input-label">Montant TTC (€)</label>
+            <label className="input-label">Prix TTC (€)</label>
             <input className="input" type="number" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} />
           </div>
+          <div className="input-group">
+            <label className="input-label">Client</label>
+            <select className="input" value={newClientId} onChange={e => setNewClientId(e.target.value)}>
+              <option value="">Non assigné</option>
+              {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </select>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setAddingClient(false)}>Annuler</button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={addClientBilling}>Ajouter</button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setAddingPrestation(false)}>Annuler</button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={addPrestation} disabled={!newType}>Ajouter</button>
           </div>
         </div>
       )}

@@ -20,8 +20,8 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Mission n° ${mission.id.slice(0,8).toUpperCase()} - ${new Date(mission.dateTime).toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Type : ${mission.type.toUpperCase()}`, 105, 36, { align: 'center' });
+  const typesStr = mission.prestations && mission.prestations.length > 0 ? mission.prestations.map((p: any) => p.type).join(' + ') : mission.type;
+  doc.text(`Type : ${typesStr.toUpperCase()}`, 105, 36, { align: 'center' });
 
   // Infos Véhicule
   doc.setTextColor('#000000');
@@ -113,8 +113,12 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
 
 export const generateFacture = (mission: Mission, settings: Settings, clientId: string) => {
   const doc = new jsPDF('p', 'mm', 'a4');
-  const clientInfo = mission.clients.find(c => c.clientId === clientId);
-  if (!clientInfo) return;
+  
+  const clientPrestations = (mission.prestations || []).filter(p => p.clientId === clientId);
+  if (clientPrestations.length === 0) return;
+  
+  const clientName = clientPrestations[0].clientName || 'Client Inconnu';
+  const prixTTC = clientPrestations.reduce((sum, p) => sum + p.prixTTC, 0);
 
   const primaryColor = '#1a2940';
 
@@ -141,10 +145,14 @@ export const generateFacture = (mission: Mission, settings: Settings, clientId: 
   doc.setFont('helvetica', 'bold');
   doc.text('Facturé à :', 105, 48);
   doc.setFontSize(12);
-  doc.text(clientInfo.clientName, 105, 55);
+  doc.text(clientName, 105, 55);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Client Compte Pro', 105, 62);
+
+  // Détails véhicule
+  doc.text(`Véhicule : ${mission.plaque}`, 15, 80);
+  if (mission.kilometrage) doc.text(`Kilométrage : ${mission.kilometrage} km`, 15, 86);
 
   // Détails prestation
   doc.setFont('helvetica', 'bold');
@@ -153,31 +161,34 @@ export const generateFacture = (mission: Mission, settings: Settings, clientId: 
   doc.line(15, 98, 195, 98);
 
   doc.setFont('helvetica', 'normal');
-  doc.text(`Prestation : ${mission.type}`, 15, 108);
-  doc.text(`Véhicule : ${mission.plaque}`, 15, 114);
-  if (mission.kilometrage) doc.text(`Kilométrage : ${mission.kilometrage} km`, 15, 120);
+  
+  let yOffset = 108;
+  const tvaRate = settings.tva / 100;
+  
+  clientPrestations.forEach((p, index) => {
+    const pHT = p.prixTTC / (1 + tvaRate);
+    doc.text(`Prestation : ${p.type}`, 15, yOffset);
+    doc.text(`${pHT.toFixed(2)} €`, 160, yOffset, { align: 'right' });
+    yOffset += 8;
+  });
 
   // Calculs TVA
-  const prixTTC = clientInfo.montantTTC;
-  const tvaRate = settings.tva / 100;
   const prixHT = prixTTC / (1 + tvaRate);
   const montantTVA = prixTTC - prixHT;
 
-  doc.text(`${prixHT.toFixed(2)} €`, 160, 108, { align: 'right' });
-
   // Totaux Box
   doc.setDrawColor('#cccccc');
-  doc.line(100, 160, 195, 160);
-  doc.text('Total HT', 130, 170);
-  doc.text(`${prixHT.toFixed(2)} €`, 190, 170, { align: 'right' });
+  doc.line(100, yOffset + 10, 195, yOffset + 10);
+  doc.text('Total HT', 130, yOffset + 20);
+  doc.text(`${prixHT.toFixed(2)} €`, 190, yOffset + 20, { align: 'right' });
   
-  doc.text(`TVA (${settings.tva}%)`, 130, 178);
-  doc.text(`${montantTVA.toFixed(2)} €`, 190, 178, { align: 'right' });
+  doc.text(`TVA (${settings.tva}%)`, 130, yOffset + 28);
+  doc.text(`${montantTVA.toFixed(2)} €`, 190, yOffset + 28, { align: 'right' });
   
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('TOTAL TTC', 130, 190);
-  doc.text(`${prixTTC.toFixed(2)} €`, 190, 190, { align: 'right' });
+  doc.text('TOTAL TTC', 130, yOffset + 40);
+  doc.text(`${prixTTC.toFixed(2)} €`, 190, yOffset + 40, { align: 'right' });
 
   // Mentions légales
   doc.setFontSize(8);
@@ -187,5 +198,5 @@ export const generateFacture = (mission: Mission, settings: Settings, clientId: 
   doc.text(`En cas de retard de paiement, une pénalité de 3 fois le taux d'intérêt légal sera appliquée.`, 15, 274);
   doc.text(`Indemnité forfaitaire pour frais de recouvrement : 40 €`, 15, 278);
 
-  doc.save(`Facture_${clientInfo.clientName.replace(/\s+/g, '_')}_${mission.plaque}.pdf`);
+  doc.save(`Facture_${clientName.replace(/\s+/g, '_')}_${mission.plaque}.pdf`);
 };
