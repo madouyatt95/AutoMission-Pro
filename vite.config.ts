@@ -12,16 +12,16 @@ export default defineConfig({
         name: 'AutoMission Pro',
         short_name: 'AutoMission',
         description: 'Gestion de missions automobiles',
-        theme_color: '#0f1419',
-        background_color: '#0f1419',
+        theme_color: '#06070a',
+        background_color: '#06070a',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
         icons: [
           {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: 'icon.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]
