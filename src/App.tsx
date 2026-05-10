@@ -8,6 +8,7 @@ import Documents from './pages/Documents';
 import Rappels from './pages/Rappels';
 import MissionDetail from './pages/MissionDetail';
 import VehicleHistory from './pages/VehicleHistory';
+import ClientDetail from './pages/ClientDetail';
 import { useRappelStore } from './store';
 
 const navItems = [
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/rappels" element={<Rappels />} />
         <Route path="/mission/:id" element={<MissionDetail />} />
         <Route path="/vehicule/:plaque" element={<VehicleHistory />} />
+        <Route path="/client/:id" element={<ClientDetail />} />
       </Routes>
 
       <nav className="bottom-nav">

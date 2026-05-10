@@ -61,7 +61,7 @@ export default function Clients() {
           const isTop = getClientCA(client.id) > 1000;
           
           return (
-            <div key={client.id} className="client-card" onClick={() => navigate(`/missions?client=${client.id}`)}>
+            <div key={client.id} className="client-card" onClick={() => navigate(`/client/${client.id}`)}>
               <div className="client-left">
                 <div className="client-logo-wrapper">
                   <img src={getLogo(client.nom, client.email)} className="client-logo" alt={client.nom} />

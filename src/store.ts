@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Mission, Client, AppDocument, Rappel, MissionStatus, MissionType } from './types';
+import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 // ==================== MISSION STORE ====================
 interface MissionStore {
   missions: Mission[];
-  addMission: (mission: Partial<Mission> & { plaque: string; type: MissionType }) => Mission;
+  addMission: (mission: Partial<Mission> & { plaque: string }) => Mission;
   updateMission: (id: string, updates: Partial<Mission>) => void;
   deleteMission: (id: string) => void;
   duplicateMission: (id: string) => Mission | null;
@@ -21,11 +21,14 @@ export const useMissionStore = create<MissionStore>()(
       missions: [],
       addMission: (data) => {
         const now = new Date().toISOString();
+        const types = data.types || (data.type ? [data.type] : []);
         const mission: Mission = {
           id: uuidv4(),
           plaque: data.plaque.toUpperCase().trim(),
-          type: data.type,
+          types,
+          type: types[0] || '',
           dateTime: data.dateTime || now,
+          vehicleId: data.vehicleId,
           kilometrage: data.kilometrage,
           couleur: data.couleur,
           etatGeneral: data.etatGeneral,
@@ -34,6 +37,7 @@ export const useMissionStore = create<MissionStore>()(
           notesTexte: data.notesTexte || '',
           notesVocales: data.notesVocales || [],
           prixTTC: data.prixTTC,
+          prixManuel: data.prixManuel,
           geolocation: data.geolocation,
           statut: data.statut || 'a_facturer',
           clients: data.clients || [],
@@ -99,6 +103,9 @@ export const useClientStore = create<ClientStore>()(
           telephone: data.telephone,
           adresse: data.adresse,
           notes: data.notes,
+          type: data.type || 'entreprise',
+          conditionsPaiement: data.conditionsPaiement,
+          siret: data.siret,
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ clients: [client, ...state.clients] }));
@@ -114,6 +121,82 @@ export const useClientStore = create<ClientStore>()(
       },
     }),
     { name: 'automission-clients' }
+  )
+);
+
+// ==================== VEHICLE STORE ====================
+interface VehicleStore {
+  vehicles: Vehicle[];
+  addVehicle: (data: Partial<Vehicle> & { plaque: string }) => Vehicle;
+  updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
+  deleteVehicle: (id: string) => void;
+  getByPlaque: (plaque: string) => Vehicle | undefined;
+}
+
+export const useVehicleStore = create<VehicleStore>()(
+  persist(
+    (set, get) => ({
+      vehicles: [],
+      addVehicle: (data) => {
+        const vehicle: Vehicle = {
+          id: uuidv4(),
+          plaque: data.plaque.toUpperCase().trim(),
+          marque: data.marque,
+          modele: data.modele,
+          finition: data.finition,
+          annee: data.annee,
+          motorisation: data.motorisation,
+          carburant: data.carburant,
+          boiteVitesses: data.boiteVitesses,
+          couleur: data.couleur,
+          kilometrage: data.kilometrage,
+          vin: data.vin,
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({ vehicles: [vehicle, ...state.vehicles] }));
+        return vehicle;
+      },
+      updateVehicle: (id, updates) => {
+        set((state) => ({
+          vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, ...updates } : v)),
+        }));
+      },
+      deleteVehicle: (id) => {
+        set((state) => ({ vehicles: state.vehicles.filter((v) => v.id !== id) }));
+      },
+      getByPlaque: (plaque) => get().vehicles.find((v) => v.plaque === plaque.toUpperCase().trim()),
+    }),
+    { name: 'automission-vehicles' }
+  )
+);
+
+// ==================== CUSTOM TYPE STORE ====================
+interface CustomTypeStore {
+  customTypes: CustomMissionType[];
+  addType: (data: Omit<CustomMissionType, 'id'>) => CustomMissionType;
+  updateType: (id: string, updates: Partial<CustomMissionType>) => void;
+  deleteType: (id: string) => void;
+}
+
+export const useCustomTypeStore = create<CustomTypeStore>()(
+  persist(
+    (set) => ({
+      customTypes: [],
+      addType: (data) => {
+        const t: CustomMissionType = { id: uuidv4(), ...data };
+        set((state) => ({ customTypes: [...state.customTypes, t] }));
+        return t;
+      },
+      updateType: (id, updates) => {
+        set((state) => ({
+          customTypes: state.customTypes.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+        }));
+      },
+      deleteType: (id) => {
+        set((state) => ({ customTypes: state.customTypes.filter((t) => t.id !== id) }));
+      },
+    }),
+    { name: 'automission-custom-types' }
   )
 );
 
@@ -210,8 +293,8 @@ export const useSettingsStore = create<SettingsStore>()(
     (set) => ({
       tva: 20,
       companyName: 'AutoMission Services',
-      autoAlertDaysFacturation: 1, // J+1 for billing after finalizing
-      autoAlertDaysRelance: 3,     // J+3 for following up on 'en_attente'
+      autoAlertDaysFacturation: 1,
+      autoAlertDaysRelance: 3,
       updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
     }),
     { name: 'automission-settings' }

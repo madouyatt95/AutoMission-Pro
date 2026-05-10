@@ -18,10 +18,10 @@ export default function Missions() {
     let list = [...missions].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
     if (search) {
       const q = search.toUpperCase();
-      list = list.filter(m => m.plaque.includes(q) || m.type.toUpperCase().includes(q) || m.clients.some(c => c.clientName.toUpperCase().includes(q)));
+      list = list.filter(m => m.plaque.includes(q) || (m.types || [m.type]).some(t => t.toUpperCase().includes(q)) || m.clients.some(c => c.clientName.toUpperCase().includes(q)));
     }
     if (statusFilter !== 'all') list = list.filter(m => m.statut === statusFilter);
-    if (typeFilter !== 'all') list = list.filter(m => m.type === typeFilter);
+    if (typeFilter !== 'all') list = list.filter(m => (m.types || [m.type]).includes(typeFilter));
     return list;
   }, [missions, search, statusFilter, typeFilter]);
 
@@ -101,7 +101,9 @@ export default function Missions() {
               <div className="mission-card-content">
                 <div className="mission-plaque">{mission.plaque}</div>
                 <div className="mission-type-tags">
-                  <span className="mission-type-badge">🚘 {mission.type}</span>
+                  {(mission.types || [mission.type]).map((t, ti) => (
+                    <span key={ti} className="mission-type-badge">🚘 {t}</span>
+                  ))}
                   {mission.brouillon && <span className="mission-type-badge rappel">⚠️ BROUILLON</span>}
                 </div>
                 

@@ -1,18 +1,46 @@
 export type MissionStatus = 'a_facturer' | 'en_attente' | 'facture' | 'paye';
 export type MissionType = 'Expertise' | 'Révision' | 'Rappel constructeur' | 'Nettoyage' | 'Transfert' | 'Pneus' | 'Convoyage' | 'Garage' | 'Vitrage' | 'État des lieux' | 'Restitution' | 'Livraison';
 export type VehicleView = 'dessus' | 'avant' | 'arriere' | 'gauche' | 'droite';
-export type DamageType = 'rayure' | 'impact' | 'enfonce' | 'casse' | 'pare_brise' | 'usure_pneus' | 'interieur' | 'autre';
+export type DamageType = 'rayure' | 'impact' | 'enfonce' | 'casse' | 'fissure' | 'usure_pneus' | 'interieur' | 'autre';
 export type VehicleCondition = 'excellent' | 'bon' | 'moyen' | 'mauvais';
 export type DocumentType = 'carte_grise' | 'assurance' | 'bon_mission' | 'facture' | 'autre';
 export type ReminderRepeat = 'unique' | 'hebdomadaire' | 'mensuelle';
+export type FuelType = 'Essence' | 'Diesel' | 'Hybride' | 'Électrique' | 'GPL' | 'Autre';
+export type GearboxType = 'Manuelle' | 'Automatique';
+export type ClientType = 'particulier' | 'entreprise';
 
+// ==================== VEHICLE ====================
+export interface Vehicle {
+  id: string;
+  plaque: string;
+  marque?: string;
+  modele?: string;
+  finition?: string;
+  annee?: number;
+  motorisation?: string;
+  carburant?: FuelType;
+  boiteVitesses?: GearboxType;
+  couleur?: string;
+  kilometrage?: number;
+  vin?: string;
+  createdAt: string;
+}
+
+// ==================== CUSTOM MISSION TYPES ====================
+export interface CustomMissionType {
+  id: string;
+  nom: string;
+  couleur: string;
+}
+
+// ==================== DEGATS ====================
 export interface Degat {
   id: string;
   piece: string;
   vue: VehicleView;
   type: DamageType;
   commentaire?: string;
-  photoId?: string;
+  photos: Photo[];
 }
 
 export interface Photo {
@@ -29,6 +57,7 @@ export interface VoiceNote {
   timestamp: string;
 }
 
+// ==================== CLIENT FACTURATION ====================
 export interface ClientFacturation {
   clientId: string;
   clientName: string;
@@ -39,11 +68,14 @@ export interface ClientFacturation {
   notesInternes?: string;
 }
 
+// ==================== MISSION ====================
 export interface Mission {
   id: string;
   plaque: string;
-  type: MissionType;
+  types: string[]; // multiple types (built-in + custom)
+  type: string; // kept for backward compat, = types[0]
   dateTime: string;
+  vehicleId?: string;
   kilometrage?: number;
   couleur?: string;
   etatGeneral?: VehicleCondition;
@@ -52,6 +84,7 @@ export interface Mission {
   notesTexte?: string;
   notesVocales: VoiceNote[];
   prixTTC?: number;
+  prixManuel?: boolean;
   geolocation?: { lat: number; lng: number; address?: string };
   statut: MissionStatus;
   clients: ClientFacturation[];
@@ -62,11 +95,21 @@ export interface Mission {
   updatedAt: string;
 }
 
+// ==================== PDF OPTIONS ====================
+export interface PdfOptions {
+  inclureNotes: boolean;
+  inclurePrix: boolean;
+  inclureVocales: boolean;
+  inclureDocuments: boolean;
+}
+
+// ==================== SETTINGS ====================
 export interface Settings {
   tva: number;
   companyName: string;
 }
 
+// ==================== CLIENT ====================
 export interface Client {
   id: string;
   nom: string;
@@ -74,9 +117,13 @@ export interface Client {
   telephone?: string;
   adresse?: string;
   notes?: string;
+  type?: ClientType;
+  conditionsPaiement?: string;
+  siret?: string;
   createdAt: string;
 }
 
+// ==================== DOCUMENT ====================
 export interface AppDocument {
   id: string;
   nom: string;
@@ -88,6 +135,7 @@ export interface AppDocument {
   createdAt: string;
 }
 
+// ==================== RAPPEL ====================
 export interface Rappel {
   id: string;
   titre: string;
@@ -100,6 +148,7 @@ export interface Rappel {
   createdAt: string;
 }
 
+// ==================== CONSTANTS ====================
 export const MISSION_TYPES: MissionType[] = [
   'Expertise', 'Révision', 'Rappel constructeur', 'Nettoyage',
   'Transfert', 'Pneus', 'Convoyage', 'Garage',
@@ -118,7 +167,7 @@ export const DAMAGE_TYPES: Record<DamageType, string> = {
   impact: 'Impact',
   enfonce: 'Enfoncé',
   casse: 'Cassé',
-  pare_brise: 'Pare-brise',
+  fissure: 'Fissure',
   usure_pneus: 'Usure pneus',
   interieur: 'Intérieur',
   autre: 'Autre',
@@ -142,6 +191,15 @@ export const DOCUMENT_TYPES: Record<DocumentType, string> = {
 
 export const VEHICLE_COLORS = [
   'Blanc', 'Noir', 'Gris', 'Argent', 'Bleu', 'Rouge', 'Vert', 'Beige', 'Marron', 'Orange', 'Jaune', 'Autre'
+];
+
+export const FUEL_TYPES: FuelType[] = ['Essence', 'Diesel', 'Hybride', 'Électrique', 'GPL', 'Autre'];
+export const GEARBOX_TYPES: GearboxType[] = ['Manuelle', 'Automatique'];
+
+export const CAR_BRANDS = [
+  'Renault', 'Peugeot', 'Citroën', 'Dacia', 'BMW', 'Mercedes', 'Audi',
+  'Volkswagen', 'Toyota', 'Tesla', 'Ford', 'Opel', 'Fiat', 'Hyundai',
+  'Kia', 'Nissan', 'Seat', 'Skoda', 'Volvo', 'Mini', 'Porsche', 'Autre'
 ];
 
 export const CONDITION_LABELS: Record<VehicleCondition, string> = {
