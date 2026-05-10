@@ -1,5 +1,5 @@
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, Zap, Users, FileText, Bell } from 'lucide-react';
+import { Routes, Route, useLocation, useNavigate, Link } from 'react-router-dom';
+import { LayoutDashboard, ClipboardList, Zap, Users, FileText, Bell, Car } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Missions from './pages/Missions';
 import Terrain from './pages/Terrain';
@@ -8,6 +8,7 @@ import Documents from './pages/Documents';
 import Rappels from './pages/Rappels';
 import MissionDetail from './pages/MissionDetail';
 import VehicleHistory from './pages/VehicleHistory';
+import { useRappelStore } from './store';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,15 +16,29 @@ const navItems = [
   { path: '/terrain', icon: Zap, label: 'Terrain', isTerrain: true },
   { path: '/clients', icon: Users, label: 'Clients' },
   { path: '/documents', icon: FileText, label: 'Documents' },
-  { path: '/rappels', icon: Bell, label: 'Rappels' },
 ];
 
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { rappels } = useRappelStore();
+  
+  const today = new Date().toISOString().split('T')[0];
+  const uncompletedRappels = rappels.filter(r => !r.completed && r.date <= today).length;
 
   return (
     <div className="app">
+      <header className="top-header">
+        <Link to="/" className="header-title">
+          <Car size={24} color="var(--accent)" />
+          AutoMission Pro
+        </Link>
+        <button className="header-bell" onClick={() => navigate('/rappels')}>
+          <Bell />
+          {uncompletedRappels > 0 && <span className="bell-badge"></span>}
+        </button>
+      </header>
+
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/missions" element={<Missions />} />

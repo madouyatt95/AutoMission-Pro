@@ -44,8 +44,9 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="dash-welcome">
-        <h1>AutoMission Pro</h1>
-        <p>{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
+          {now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
       </div>
 
       <div className="dash-ca card">
