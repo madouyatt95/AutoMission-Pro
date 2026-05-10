@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'AutoMission Pro',
-        short_name: 'AutoMission',
+        name: 'Chauffeur Service',
+        short_name: 'Chauffeur',
         description: 'Gestion de missions automobiles',
         theme_color: '#06070a',
         background_color: '#06070a',

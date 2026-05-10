@@ -1,131 +1,145 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Plus, Clock, User, Settings2, MoreHorizontal } from 'lucide-react';
-import { useMissionStore, useClientStore } from '../store';
-import { STATUS_CONFIG, MISSION_TYPES } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Clock, User, Car, ChevronRight, TrendingUp } from 'lucide-react';
+import { useMissionStore, useClientStore, useVehicleStore } from '../store';
+import { STATUS_CONFIG } from '../types';
 
 export default function Missions() {
   const { missions } = useMissionStore();
   const { clients } = useClientStore();
+  const { vehicles } = useVehicleStore();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const filtered = useMemo(() => {
-    let list = [...missions].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+  // Group missions by plaque
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof missions>();
+    missions.forEach(m => {
+      const list = map.get(m.plaque) || [];
+      list.push(m);
+      map.set(m.plaque, list);
+    });
+
+    let entries = Array.from(map.entries()).map(([plaque, missionList]) => {
+      const sorted = [...missionList].sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+      const vehicle = vehicles.find(v => v.plaque === plaque);
+      const totalCA = missionList.reduce((s, m) => s + (m.prixTTC || 0), 0);
+      const lastDate = sorted[0]?.dateTime;
+      const allClients = [...new Set(missionList.flatMap(m => m.clients.map(c => c.clientName)))];
+      const globalStatus = missionList.some(m => m.statut === 'a_facturer') ? 'a_facturer'
+        : missionList.some(m => m.statut === 'en_attente') ? 'en_attente'
+        : missionList.some(m => m.statut === 'facture') ? 'facture' : 'paye';
+
+      return { plaque, missions: sorted, vehicle, totalCA, lastDate, allClients, globalStatus, count: missionList.length };
+    });
+
+    // Sort by last mission date
+    entries.sort((a, b) => new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime());
+
+    // Filter
     if (search) {
       const q = search.toUpperCase();
-      list = list.filter(m => m.plaque.includes(q) || (m.types || [m.type]).some(t => t.toUpperCase().includes(q)) || m.clients.some(c => c.clientName.toUpperCase().includes(q)));
+      entries = entries.filter(e =>
+        e.plaque.includes(q) ||
+        (e.vehicle?.marque || '').toUpperCase().includes(q) ||
+        (e.vehicle?.modele || '').toUpperCase().includes(q) ||
+        e.allClients.some(c => c.toUpperCase().includes(q))
+      );
     }
-    if (statusFilter !== 'all') list = list.filter(m => m.statut === statusFilter);
-    if (typeFilter !== 'all') list = list.filter(m => (m.types || [m.type]).includes(typeFilter));
-    return list;
-  }, [missions, search, statusFilter, typeFilter]);
+    if (statusFilter !== 'all') {
+      entries = entries.filter(e => e.globalStatus === statusFilter);
+    }
+
+    return entries;
+  }, [missions, vehicles, search, statusFilter]);
 
   const statusFilters = [
-    { value: 'all', label: 'Toutes' },
+    { value: 'all', label: 'Tous' },
     { value: 'a_facturer', label: 'À facturer' },
     { value: 'en_attente', label: 'En attente' },
-    { value: 'facture', label: 'Facturées' },
-    { value: 'paye', label: 'Payées' },
-  ];
-
-  const getStatusCount = (status: string) => {
-    if (status === 'all') return missions.length;
-    return missions.filter(m => m.statut === status).length;
-  };
-
-  const carImages = [
-    'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=600',
-    'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=600',
-    'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=600',
-    'https://images.unsplash.com/photo-1503376713246-ce3e7e296838?auto=format&fit=crop&q=80&w=600'
+    { value: 'facture', label: 'Facturé' },
+    { value: 'paye', label: 'Payé' },
   ];
 
   return (
-    <div className="page">
-      <div className="page-header page-header-flex">
-        <div>
-          <h1 className="page-title">Missions</h1>
-          <p className="page-subtitle">{missions.length} missions</p>
+    <div className="page" style={{ paddingBottom: 120 }}>
+      <div className="page-header">
+        <div className="page-header-flex">
+          <div>
+            <h1 className="page-title">Véhicules</h1>
+            <p className="page-subtitle">{grouped.length} véhicule{grouped.length > 1 ? 's' : ''} • {missions.length} mission{missions.length > 1 ? 's' : ''}</p>
+          </div>
         </div>
-        <button className="btn-secondary" style={{ padding: '8px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, border: 'none', background: 'rgba(255,255,255,0.05)' }}>
-          <span style={{ display: 'flex', gap: 2, height: 12, alignItems: 'flex-end' }}>
-            <span style={{ width: 3, height: '40%', background: 'var(--accent)', borderRadius: 2 }}></span>
-            <span style={{ width: 3, height: '70%', background: 'var(--accent)', borderRadius: 2 }}></span>
-            <span style={{ width: 3, height: '100%', background: 'var(--accent)', borderRadius: 2 }}></span>
-          </span>
-          Stats
-        </button>
       </div>
 
+      {/* Search */}
       <div className="search-bar">
         <Search className="search-icon" />
-        <input placeholder="Rechercher plaque, type, client..." value={search} onChange={e => setSearch(e.target.value)} />
-        <button className="filter-btn"><Settings2 size={18} /></button>
+        <input placeholder="Plaque, marque, client..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      <div className="filter-tabs">
+      {/* Status filters */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 16, scrollbarWidth: 'none', paddingBottom: 4 }}>
         {statusFilters.map(f => (
-          <button key={f.value} className={`filter-tab ${statusFilter === f.value ? 'active' : ''}`} onClick={() => setStatusFilter(f.value)}>
-            {f.label} <span style={{ marginLeft: 6, opacity: statusFilter === f.value ? 1 : 0.5, fontWeight: statusFilter === f.value ? 800 : 500 }}>{getStatusCount(f.value)}</span>
+          <button key={f.value} className={`chip ${statusFilter === f.value ? 'active' : ''}`} onClick={() => setStatusFilter(f.value)} style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+            {f.label}
           </button>
         ))}
       </div>
 
-      <div className="filter-tabs" style={{ marginBottom: 20 }}>
-        <button className={`filter-tab ${typeFilter === 'all' ? 'active' : ''}`} onClick={() => setTypeFilter('all')}>Tous types</button>
-        {MISSION_TYPES.map(t => (
-          <button key={t} className={`filter-tab ${typeFilter === t ? 'active' : ''}`} onClick={() => setTypeFilter(t)}>{t}</button>
-        ))}
-        <button className="filter-tab"><MoreHorizontal size={14} /></button>
-      </div>
-
-      <div style={{ paddingBottom: 80 }}>
-        {filtered.map((mission, idx) => {
-          const cfg = STATUS_CONFIG[mission.statut];
-          const dt = new Date(mission.dateTime);
-          const carImg = carImages[idx % carImages.length];
-          
+      {/* Grouped vehicle cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {grouped.map(entry => {
+          const cfg = STATUS_CONFIG[entry.globalStatus as keyof typeof STATUS_CONFIG];
           return (
-            <div key={mission.id} className="mission-card" onClick={() => navigate(`/mission/${mission.id}`)}>
-              <div className="mission-card-bg" style={{ backgroundImage: `url(${carImg})` }}></div>
-              <div className="mission-status-top">
-                <span className={`status-badge status-${mission.statut}`}>{cfg.label}</span>
-                <MoreHorizontal size={20} color="var(--text2)" />
-              </div>
-              
-              <div className="mission-card-content">
-                <div className="mission-plaque">{mission.plaque}</div>
-                <div className="mission-type-tags">
-                  {(mission.types || [mission.type]).map((t, ti) => (
-                    <span key={ti} className="mission-type-badge">🚘 {t}</span>
-                  ))}
-                  {mission.brouillon && <span className="mission-type-badge rappel">⚠️ BROUILLON</span>}
+            <div key={entry.plaque} className="card" onClick={() => navigate(`/vehicule/${encodeURIComponent(entry.plaque)}`)} style={{ padding: 0, cursor: 'pointer', overflow: 'hidden' }}>
+              {/* Top bar with status */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 900, fontSize: 18, letterSpacing: 1 }}>{entry.plaque}</span>
                 </div>
-                
-                {mission.prixTTC != null && mission.prixTTC > 0 && (
-                  <div className="mission-price">{mission.prixTTC.toLocaleString('fr-FR')} €</div>
-                )}
-                
-                <div className="mission-meta">
-                  <span className="mission-meta-item"><Clock size={14} />{dt.toLocaleDateString('fr-FR')} • {dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                  {mission.clients[0] && <span className="mission-meta-item"><User size={14} />{mission.clients[0].clientName}</span>}
+                <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: cfg?.bg, color: cfg?.color, fontWeight: 700 }}>{cfg?.label}</span>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Vehicle info */}
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,85,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Car size={24} color="var(--accent)" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>
+                    {entry.vehicle ? `${entry.vehicle.marque || ''} ${entry.vehicle.modele || ''}`.trim() || 'Véhicule' : 'Véhicule'}
+                    {entry.vehicle?.annee && <span style={{ color: 'var(--text3)', fontWeight: 500, marginLeft: 6 }}>{entry.vehicle.annee}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text2)' }}>
+                    <span>{entry.count} mission{entry.count > 1 ? 's' : ''}</span>
+                    <span>•</span>
+                    <span style={{ color: 'var(--green)', fontWeight: 700 }}>{entry.totalCA.toLocaleString('fr-FR')} €</span>
+                  </div>
+                  {entry.allClients.length > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {entry.allClients.slice(0, 2).join(', ')}{entry.allClients.length > 2 ? ` +${entry.allClients.length - 2}` : ''}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{new Date(entry.lastDate).toLocaleDateString('fr-FR')}</div>
+                  <ChevronRight size={16} color="var(--text3)" />
                 </div>
               </div>
             </div>
           );
         })}
-
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <p style={{fontSize: 18, fontWeight: 700, color: 'var(--text)'}}>Aucune mission trouvée</p>
-          </div>
-        )}
       </div>
+
+      {grouped.length === 0 && (
+        <div className="empty-state" style={{ marginTop: 40 }}>
+          <Car size={48} />
+          <p style={{ marginTop: 12 }}>Aucun véhicule trouvé</p>
+        </div>
+      )}
 
       <button className="fab" onClick={() => navigate('/terrain')}>
         <Plus />

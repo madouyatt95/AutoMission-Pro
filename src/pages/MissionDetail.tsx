@@ -19,6 +19,9 @@ export default function MissionDetail() {
 
   const [tab, setTab] = useState<Tab>('info');
   const [showDelete, setShowDelete] = useState(false);
+  const [showPdfOptions, setShowPdfOptions] = useState(false);
+  const [pdfOpts, setPdfOpts] = useState({ inclureNotes: true, inclurePrix: true, inclurePhotos: true, inclureDegats: true, inclureDocs: false, inclureGeo: false, inclureSignature: true, inclureClient: true });
+  const [pdfClientId, setPdfClientId] = useState<string | null>(null);
 
   if (!mission) return <div className="page"><p>Mission introuvable</p><button className="btn btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Retour</button></div>;
 
@@ -66,9 +69,51 @@ export default function MissionDetail() {
 
       <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button className="btn btn-primary btn-full" onClick={finalizeMission}><Save size={18} /> {mission.brouillon ? 'Finaliser la mission' : 'Mission finalisée ✓'}</button>
-        <button className="btn btn-secondary btn-full" onClick={() => generateRapportExpertise(mission, settings)}><Download size={18} /> Télécharger Rapport (PDF)</button>
+        <button className="btn btn-secondary btn-full" onClick={() => setShowPdfOptions(true)}><Download size={18} /> Générer Rapport (PDF)</button>
+        {mission.clients.length > 1 && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {mission.clients.map(c => (
+              <button key={c.clientId} className="btn btn-secondary" style={{ flex: 1, fontSize: 12 }} onClick={() => { setPdfClientId(c.clientId); setShowPdfOptions(true); }}>
+                📄 {c.clientName.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="btn btn-danger btn-full" onClick={() => setShowDelete(true)}><Trash2 size={18} /> Supprimer</button>
       </div>
+
+      {/* PDF Options Modal */}
+      {showPdfOptions && (
+        <div className="modal-overlay" onClick={() => { setShowPdfOptions(false); setPdfClientId(null); }}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <h3 className="modal-title">Options du rapport PDF</h3>
+            {pdfClientId && <p style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, fontWeight: 700 }}>Rapport pour : {mission.clients.find(c => c.clientId === pdfClientId)?.clientName}</p>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              {([
+                ['inclureNotes', 'Inclure les notes'],
+                ['inclurePrix', 'Inclure le prix TTC'],
+                ['inclurePhotos', 'Inclure les photos'],
+                ['inclureDegats', 'Inclure les dégâts'],
+                ['inclureDocs', 'Inclure les documents'],
+                ['inclureGeo', 'Inclure la géolocalisation'],
+                ['inclureSignature', 'Inclure les signatures'],
+                ['inclureClient', 'Inclure coordonnées client'],
+              ] as [string, string][]).map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
+                  <div onClick={() => setPdfOpts(prev => ({ ...prev, [key]: !(prev as any)[key] }))} style={{ width: 48, height: 28, borderRadius: 14, background: (pdfOpts as any)[key] ? 'var(--accent)' : 'var(--surface3)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: (pdfOpts as any)[key] ? 23 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                  </div>
+                </label>
+              ))}
+            </div>
+            <button className="btn btn-primary btn-full" onClick={() => { generateRapportExpertise(mission, settings); setShowPdfOptions(false); setPdfClientId(null); }}>
+              <Download size={16} /> Générer le PDF
+            </button>
+          </div>
+        </div>
+      )}
 
       {showDelete && (
         <div className="modal-overlay" onClick={() => setShowDelete(false)}>

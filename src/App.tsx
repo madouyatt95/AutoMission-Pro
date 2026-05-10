@@ -32,7 +32,7 @@ export default function App() {
       <header className="top-header">
         <Link to="/" className="header-title">
           <Car size={24} color="var(--accent)" />
-          AutoMission <span>Pro</span>
+          Chauffeur <span>Service</span>
         </Link>
         <button className="header-bell" onClick={() => navigate('/rappels')}>
           <Bell />

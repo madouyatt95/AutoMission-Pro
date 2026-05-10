@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, FileText, ChevronRight, Bell, RefreshCw, Car } from 'lucide-react';
-import { useMissionStore, useClientStore, useRappelStore } from '../store';
+import { TrendingUp, FileText, ChevronRight, Bell, RefreshCw, Car, AlertTriangle } from 'lucide-react';
+import { useMissionStore, useClientStore, useRappelStore, useVehicleStore } from '../store';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
   const { missions } = useMissionStore();
   const { clients } = useClientStore();
   const { rappels } = useRappelStore();
+  const { vehicles } = useVehicleStore();
   const navigate = useNavigate();
 
   const now = new Date();
@@ -25,7 +26,9 @@ export default function Dashboard() {
   const today = now.toISOString().split('T')[0];
   const rappelsToday = rappels.filter(r => r.date === today && !r.completed);
   const rappelsOverdue = rappels.filter(r => r.date < today && !r.completed);
-  const alertes = [...rappelsOverdue, ...rappelsToday].slice(0, 3); // Max 3 on dashboard
+  const alertes = [...rappelsOverdue, ...rappelsToday].slice(0, 3);
+  const unpaidTotal = missions.reduce((s, m) => s + m.clients.filter(c => c.statut !== 'paye').reduce((ss, c) => ss + c.montantTTC, 0), 0);
+  const vehiclesNeedingAction = missions.filter(m => m.statut === 'a_facturer').length;
 
   // Top clients by revenue
   const clientRevenue: Record<string, number> = {};
@@ -115,6 +118,22 @@ export default function Dashboard() {
             <path d="M35 60L50 45L60 55L75 40" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M65 40H75V50" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
+        </div>
+      </div>
+
+      {/* Key Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)' }}>{vehicles.length}</div>
+          <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>VÉHICULES</div>
+        </div>
+        <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--blue)' }}>{missions.length}</div>
+          <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>MISSIONS</div>
+        </div>
+        <div className="card" style={{ padding: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: unpaidTotal > 0 ? 'var(--red)' : 'var(--green)' }}>{unpaidTotal.toLocaleString('fr-FR')}€</div>
+          <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>À ENCAISSER</div>
         </div>
       </div>
 
