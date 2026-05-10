@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Clock, FileText, CreditCard, Car, ChevronRight } from 'lucide-react';
+import { TrendingUp, Clock, FileText, CreditCard, Car, ChevronRight, ClipboardList } from 'lucide-react';
 import { useMissionStore, useClientStore, useRappelStore } from '../store';
 import { STATUS_CONFIG } from '../types';
 
