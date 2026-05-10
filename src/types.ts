@@ -41,6 +41,8 @@ export interface Degat {
   type: DamageType;
   commentaire?: string;
   photos: Photo[];
+  x?: number;
+  y?: number;
 }
 
 export interface Photo {

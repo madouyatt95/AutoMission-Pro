@@ -1,9 +1,7 @@
-import { useState, useRef } from 'react';
-import { Degat, DAMAGE_TYPES, DamageType, VehicleView } from '../types';
-import { Plus, Camera, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Degat, DamageType, VehicleView } from '../types';
+import { Plus, Camera, X, Edit2, Trash2 } from 'lucide-react';
 import SafeModal from './SafeModal';
-
-type ExtendedView = 'avant' | 'avant_droit' | 'droite' | 'arriere_droit' | 'arriere' | 'arriere_gauche' | 'gauche' | 'avant_gauche' | 'dessus';
 
 interface Props {
   degats: Degat[];
@@ -11,154 +9,131 @@ interface Props {
   onRemoveDegat: (id: string) => void;
 }
 
-const VIEW_ORDER: { key: ExtendedView; label: string; mapTo: VehicleView }[] = [
-  { key: 'avant', label: 'Avant', mapTo: 'avant' },
-  { key: 'avant_droit', label: 'Av. Droit', mapTo: 'avant' },
-  { key: 'droite', label: 'Droite', mapTo: 'droite' },
-  { key: 'arriere_droit', label: 'Ar. Droit', mapTo: 'arriere' },
-  { key: 'arriere', label: 'Arrière', mapTo: 'arriere' },
-  { key: 'arriere_gauche', label: 'Ar. Gauche', mapTo: 'arriere' },
-  { key: 'gauche', label: 'Gauche', mapTo: 'gauche' },
-  { key: 'avant_gauche', label: 'Av. Gauche', mapTo: 'avant' },
-  { key: 'dessus', label: 'Dessus', mapTo: 'dessus' },
+// Map the views for our UI tabs
+const UI_TABS = [
+  { id: '360', label: '360°' },
+  { id: 'avant', label: 'Avant' },
+  { id: 'arriere', label: 'Arrière' },
+  { id: 'gauche', label: 'Gauche' },
+  { id: 'droite', label: 'Droite' },
+  { id: 'dessus', label: 'Dessus' }
 ];
 
-const ZONES: Record<string, string[]> = {
-  avant: ['Capot', 'Pare-choc avant', 'Phares', 'Calandre', 'Pare-brise'],
-  avant_droit: ['Aile avant droite', 'Phare droit', 'Pare-choc avant droit', 'Rétroviseur droit', 'Jante avant droite'],
-  droite: ['Porte avant droite', 'Porte arrière droite', 'Aile avant droite', 'Aile arrière droite', 'Bas de caisse droit', 'Rétroviseur droit', 'Jante avant droite', 'Jante arrière droite'],
-  arriere_droit: ['Aile arrière droite', 'Feu arrière droit', 'Pare-choc arrière droit', 'Jante arrière droite'],
-  arriere: ['Coffre', 'Pare-choc arrière', 'Feux arrière', 'Lunette arrière'],
-  arriere_gauche: ['Aile arrière gauche', 'Feu arrière gauche', 'Pare-choc arrière gauche', 'Jante arrière gauche'],
-  gauche: ['Porte avant gauche', 'Porte arrière gauche', 'Aile avant gauche', 'Aile arrière gauche', 'Bas de caisse gauche', 'Rétroviseur gauche', 'Jante avant gauche', 'Jante arrière gauche'],
-  avant_gauche: ['Aile avant gauche', 'Phare gauche', 'Pare-choc avant gauche', 'Rétroviseur gauche', 'Jante avant gauche'],
-  dessus: ['Toit', 'Capot', 'Coffre', 'Pare-brise', 'Vitres latérales'],
+// The 9 views of our 360 engine
+type EngineView = 'avant' | 'avant_droit' | 'droite' | 'arriere_droit' | 'arriere' | 'arriere_gauche' | 'gauche' | 'avant_gauche' | 'dessus';
+
+const ENGINE_VIEWS: { key: EngineView; label: string; mapTo: VehicleView }[] = [
+  { key: 'avant', label: 'Avant', mapTo: 'avant' },
+  { key: 'avant_droit', label: 'Avant Droit', mapTo: 'droite' },
+  { key: 'droite', label: 'Droite', mapTo: 'droite' },
+  { key: 'arriere_droit', label: 'Arrière Droit', mapTo: 'droite' },
+  { key: 'arriere', label: 'Arrière', mapTo: 'arriere' },
+  { key: 'arriere_gauche', label: 'Arrière Gauche', mapTo: 'gauche' },
+  { key: 'gauche', label: 'Gauche', mapTo: 'gauche' },
+  { key: 'avant_gauche', label: 'Avant Gauche', mapTo: 'gauche' },
+]; // Dessus is handled separately
+
+const CAR_IMAGES: Record<EngineView, string> = {
+  avant: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?q=80&w=800&auto=format&fit=crop',
+  avant_droit: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Side right
+  droite: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop',
+  arriere_droit: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop',
+  arriere: 'https://images.unsplash.com/photo-1616422285623-13ff0162193c?q=80&w=800&auto=format&fit=crop',
+  arriere_gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  avant_gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  dessus: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=800&auto=format&fit=crop',
 };
 
-function getZoneColor(count: number) {
-  if (count === 0) return 'rgba(0,230,118,0.12)';
-  if (count === 1) return 'rgba(255,153,0,0.25)';
-  if (count === 2) return 'rgba(255,51,102,0.3)';
-  return 'rgba(255,51,102,0.5)';
-}
+const LEGEND = [
+  { type: 'impact' as DamageType, color: 'var(--red)', label: 'Impact' },
+  { type: 'rayure' as DamageType, color: 'var(--orange)', label: 'Rayure' },
+  { type: 'enfonce' as DamageType, color: '#eab308', label: 'Enfoncé' },
+  { type: 'autre' as DamageType, color: 'var(--blue)', label: 'Autre' },
+];
 
-function CarSVG({ view, zoneCounts, onZone }: { view: ExtendedView; zoneCounts: Record<string, number>; onZone: (z: string) => void }) {
-  const zones = ZONES[view] || [];
-  const isSide = ['gauche', 'droite', 'avant_gauche', 'avant_droit', 'arriere_gauche', 'arriere_droit'].includes(view);
-  const isTop = view === 'dessus';
-  const flip = view.includes('droit');
-
-  if (isTop) {
-    return (
-      <svg viewBox="0 0 200 320" style={{ width: '100%', maxHeight: 260 }}>
-        <path d="M40,50 Q40,20 60,15 L140,15 Q160,20 160,50 L160,270 Q160,300 140,305 L60,305 Q40,300 40,270Z" fill="rgba(255,255,255,0.04)" stroke="var(--border-light)" strokeWidth="2" />
-        {zones.map((z, i) => {
-          const y = 20 + i * 56;
-          return (
-            <g key={z} onClick={() => onZone(z)} style={{ cursor: 'pointer' }}>
-              <rect x="50" y={y} width="100" height="50" rx="6" fill={getZoneColor(zoneCounts[z] || 0)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4" className="car-zone" />
-              <text x="100" y={y + 30} textAnchor="middle" fill="var(--text2)" fontSize="9" fontWeight="700" pointerEvents="none">{z.toUpperCase()}</text>
-              {(zoneCounts[z] || 0) > 0 && <circle cx="145" cy={y + 10} r="8" fill="var(--red)" />}
-              {(zoneCounts[z] || 0) > 0 && <text x="145" y={y + 14} textAnchor="middle" fill="white" fontSize="9" fontWeight="800" pointerEvents="none">{zoneCounts[z]}</text>}
-            </g>
-          );
-        })}
-      </svg>
-    );
-  }
-
-  if (isSide) {
-    return (
-      <svg viewBox="0 0 340 180" style={{ width: '100%', maxHeight: 180, transform: flip ? 'scaleX(-1)' : undefined }}>
-        <path d="M30,120 L30,140 Q30,155 45,155 L295,155 Q310,155 310,140 L310,120 Q310,100 290,90 L240,70 Q220,55 180,50 L130,50 Q90,55 70,70 L50,90 Q30,100 30,120Z" fill="rgba(255,255,255,0.04)" stroke="var(--border-light)" strokeWidth="2" />
-        <path d="M130,52 L85,72 L85,88 L170,88 L170,52Z" fill="rgba(0,191,255,0.08)" stroke="var(--border-light)" strokeWidth="1" />
-        <path d="M175,52 L175,88 L245,88 L245,72 Q235,58 210,52Z" fill="rgba(0,191,255,0.08)" stroke="var(--border-light)" strokeWidth="1" />
-        <circle cx="90" cy="155" r="22" fill="var(--bg)" stroke="var(--text3)" strokeWidth="3" />
-        <circle cx="90" cy="155" r="10" fill="var(--surface3)" />
-        <circle cx="250" cy="155" r="22" fill="var(--bg)" stroke="var(--text3)" strokeWidth="3" />
-        <circle cx="250" cy="155" r="10" fill="var(--surface3)" />
-        {zones.map((z, i) => {
-          const rects = [
-            { x: 85, y: 88, w: 85, h: 50 },
-            { x: 170, y: 88, w: 75, h: 50 },
-            { x: 35, y: 92, w: 50, h: 42 },
-            { x: 245, y: 92, w: 60, h: 42 },
-            { x: 115, y: 140, w: 130, h: 13 },
-            { x: 55, y: 65, w: 30, h: 22 },
-            { x: 70, y: 140, w: 40, h: 40 }, // Jante avant
-            { x: 230, y: 140, w: 40, h: 40 }, // Jante arrière
-          ];
-          const r = rects[i] || { x: 50 + i * 40, y: 90, w: 35, h: 35 };
-          return (
-            <g key={z} onClick={() => onZone(z)} style={{ cursor: 'pointer' }}>
-              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="3" fill={getZoneColor(zoneCounts[z] || 0)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4" className="car-zone" />
-              {(zoneCounts[z] || 0) > 0 && <circle cx={r.x + r.w - 5} cy={r.y + 8} r="7" fill="var(--red)" />}
-              {(zoneCounts[z] || 0) > 0 && <text x={r.x + r.w - 5} y={r.y + 12} textAnchor="middle" fill="white" fontSize="8" fontWeight="800" pointerEvents="none">{zoneCounts[z]}</text>}
-            </g>
-          );
-        })}
-      </svg>
-    );
-  }
-
-  // Front/Rear
-  return (
-    <svg viewBox="0 0 300 220" style={{ width: '100%', maxHeight: 220 }}>
-      <path d="M60,140 L60,180 Q60,200 80,200 L220,200 Q240,200 240,180 L240,140 Q240,100 200,80 L100,80 Q60,100 60,140Z" fill="rgba(255,255,255,0.04)" stroke="var(--border-light)" strokeWidth="2" />
-      <path d="M90,80 L80,50 Q80,30 100,25 L200,25 Q220,30 220,50 L210,80Z" fill="rgba(0,191,255,0.08)" stroke="var(--border-light)" strokeWidth="1.5" />
-      {zones.map((z, i) => {
-        const rects = [
-          { x: 80, y: 85, w: 140, h: 45 },
-          { x: 65, y: 145, w: 170, h: 28 },
-          { x: 70, y: 128, w: 30, h: 24 },
-          { x: 110, y: 132, w: 80, h: 14 },
-          { x: 90, y: 30, w: 120, h: 48 },
-        ];
-        const r = rects[i] || { x: 80, y: 85 + i * 30, w: 140, h: 25 };
-        return (
-          <g key={z} onClick={() => onZone(z)} style={{ cursor: 'pointer' }}>
-            <rect x={r.x} y={r.y} width={r.w} height={r.h} rx="5" fill={getZoneColor(zoneCounts[z] || 0)} stroke="var(--accent)" strokeWidth="1" strokeDasharray="4" className="car-zone" />
-            <text x={r.x + r.w / 2} y={r.y + r.h / 2 + 4} textAnchor="middle" fill="var(--text2)" fontSize="9" fontWeight="700" pointerEvents="none">{z.length > 15 ? z.substring(0, 12) + '…' : z}</text>
-            {(zoneCounts[z] || 0) > 0 && <circle cx={r.x + r.w - 8} cy={r.y + 8} r="8" fill="var(--red)" />}
-            {(zoneCounts[z] || 0) > 0 && <text x={r.x + r.w - 8} y={r.y + 12} textAnchor="middle" fill="white" fontSize="9" fontWeight="800" pointerEvents="none">{zoneCounts[z]}</text>}
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
+const DAMAGE_COLORS: Record<DamageType, string> = {
+  impact: 'var(--red)',
+  rayure: 'var(--orange)',
+  enfonce: '#eab308',
+  autre: 'var(--blue)',
+  casse: 'var(--red)',
+  fissure: 'var(--orange)',
+  interieur: 'var(--text2)',
+  usure_pneus: 'var(--text3)'
+};
 
 export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDegat }: Props) {
-  const [viewIdx, setViewIdx] = useState(0);
-  const [selectedZone, setSelectedZone] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('360');
+  const [viewIdx, setViewIdx] = useState(0); // 0 to 7 for 360, 8 for dessus
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tempCoords, setTempCoords] = useState<{ x: number, y: number } | null>(null);
+  
   const [damageType, setDamageType] = useState<DamageType>('rayure');
   const [comment, setComment] = useState('');
+  const [piece, setPiece] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  
   const touchStart = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const currentView = VIEW_ORDER[viewIdx];
+  const currentViewKey = activeTab === 'dessus' ? 'dessus' : ENGINE_VIEWS[viewIdx].key;
+  const currentMapTo = activeTab === 'dessus' ? 'dessus' : ENGINE_VIEWS[viewIdx].mapTo;
+  
+  const isFlipped = ['gauche', 'arriere_gauche', 'avant_gauche'].includes(currentViewKey);
 
-  // Count damages per zone
-  const zoneCounts: Record<string, number> = {};
-  degats.forEach(d => {
-    zoneCounts[d.piece] = (zoneCounts[d.piece] || 0) + 1;
-  });
-
-  // Count per view
-  const viewDamageCounts: Record<string, number> = {};
-  VIEW_ORDER.forEach(v => {
-    const zones = ZONES[v.key] || [];
-    viewDamageCounts[v.key] = zones.reduce((s, z) => s + (zoneCounts[z] || 0), 0);
-  });
+  // Auto-switch engine view when clicking tabs
+  useEffect(() => {
+    if (activeTab === 'avant') setViewIdx(0);
+    else if (activeTab === 'droite') setViewIdx(2);
+    else if (activeTab === 'arriere') setViewIdx(4);
+    else if (activeTab === 'gauche') setViewIdx(6);
+  }, [activeTab]);
 
   const handleSwipeStart = (x: number) => { touchStart.current = x; };
   const handleSwipeEnd = (x: number) => {
+    if (activeTab === 'dessus') return; // no swipe on top view
     const diff = touchStart.current - x;
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) setViewIdx(i => (i + 1) % VIEW_ORDER.length);
-      else setViewIdx(i => (i - 1 + VIEW_ORDER.length) % VIEW_ORDER.length);
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) setViewIdx(i => (i + 1) % 8);
+      else setViewIdx(i => (i - 1 + 8) % 8);
+      setActiveTab('360'); // switch back to 360 mode
     }
+  };
+
+  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    setTempCoords({ x, y });
+    setPiece(guessPieceFromCoords(currentViewKey, x, y));
+    setIsModalOpen(true);
+  };
+
+  const handleManualAdd = () => {
+    setTempCoords(null);
+    setPiece('');
+    setIsModalOpen(true);
+  };
+
+  const guessPieceFromCoords = (view: string, x: number, y: number) => {
+    // Basic heuristic mapping for quick data entry
+    if (view === 'avant') {
+      if (y < 40) return 'Pare-brise';
+      if (y < 60) return 'Capot';
+      return 'Pare-choc avant';
+    }
+    if (view.includes('droite') || view.includes('gauche')) {
+      if (y > 70) return 'Bas de caisse';
+      if (x < 30) return 'Aile avant';
+      if (x > 70) return 'Aile arrière';
+      return 'Portière';
+    }
+    return 'Carrosserie'; // default
   };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,110 +142,217 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        if (ev.target?.result) {
-          setPhotos(p => [...p, ev.target!.result as string]);
-        }
+        if (ev.target?.result) setPhotos(p => [...p, ev.target!.result as string]);
       };
       reader.readAsDataURL(file);
     });
     e.target.value = '';
   };
 
-  const handleAddDamage = () => {
-    if (!selectedZone) return;
+  const submitDamage = () => {
+    if (!piece) return alert('Veuillez préciser la pièce (ex: Capot)');
     onAddDegat({
-      piece: selectedZone,
-      vue: currentView.mapTo,
+      piece,
+      vue: currentMapTo,
       type: damageType,
       commentaire: comment || undefined,
       photos: photos.map((dataUrl, idx) => ({ id: Date.now().toString() + idx, dataUrl, timestamp: new Date().toISOString() })),
+      x: tempCoords?.x,
+      y: tempCoords?.y,
     });
-    setSelectedZone(null);
+    closeModal();
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setTempCoords(null);
+    setPiece('');
     setComment('');
     setDamageType('rayure');
     setPhotos([]);
   };
 
-  const zoneDegats = selectedZone ? degats.filter(d => d.piece === selectedZone) : [];
-
   return (
-    <div className="interactive-car">
-      {/* View Selector */}
-      <div className="car-view-selector">
-        {VIEW_ORDER.map((v, i) => (
-          <button key={v.key} className={`car-view-btn ${viewIdx === i ? 'active' : ''}`} onClick={() => setViewIdx(i)}>
-            <span>{v.label}</span>
-            {(viewDamageCounts[v.key] || 0) > 0 && (
-              <span className="car-view-count">{viewDamageCounts[v.key]}</span>
-            )}
+    <div className="vehicle-360-picker">
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 4px 16px', scrollbarWidth: 'none' }}>
+        {UI_TABS.map(tab => (
+          <button 
+            key={tab.id} 
+            className={`chip ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+            style={{ 
+              padding: '8px 16px', 
+              fontSize: 13, 
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              border: activeTab === tab.id ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: activeTab === tab.id ? 'rgba(255,85,0,0.1)' : 'transparent',
+              color: activeTab === tab.id ? 'var(--accent)' : 'var(--text2)'
+            }}
+          >
+            {tab.id === '360' && <span style={{ marginRight: 6, display: 'inline-flex' }}>🔄</span>}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Car SVG with swipe */}
-      <div
-        className="car-svg-container"
+      {/* Main Engine Area */}
+      <div 
+        ref={containerRef}
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          aspectRatio: '16/10', 
+          background: 'var(--surface2)', 
+          borderRadius: 16,
+          overflow: 'hidden',
+          marginBottom: 16,
+          boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5)'
+        }}
         onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
         onTouchEnd={e => handleSwipeEnd(e.changedTouches[0].clientX)}
         onMouseDown={e => handleSwipeStart(e.clientX)}
         onMouseUp={e => handleSwipeEnd(e.clientX)}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', marginBottom: 8, textAlign: 'center' }}>
-          {currentView.label.toUpperCase()} — {viewIdx + 1}/{VIEW_ORDER.length}
+        <img 
+          src={CAR_IMAGES[currentViewKey]} 
+          alt="Car View" 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            transform: isFlipped ? 'scaleX(-1)' : 'none',
+            userSelect: 'none',
+            pointerEvents: 'none'
+          }} 
+        />
+        
+        {/* Click layer */}
+        <div style={{ position: 'absolute', inset: 0, cursor: 'crosshair' }} onClick={handleImageClick}>
+          {/* Render markers for this view */}
+          {degats.map(d => {
+            if (d.vue !== currentMapTo) return null;
+            if (!d.x || !d.y) return null; // Only render coordinate-based ones here
+            
+            // Re-flip X if the image is flipped
+            const renderX = isFlipped ? 100 - d.x : d.x;
+            
+            return (
+              <div 
+                key={d.id} 
+                style={{ 
+                  position: 'absolute', 
+                  left: `${renderX}%`, 
+                  top: `${d.y}%`, 
+                  transform: 'translate(-50%, -50%)',
+                  width: 14, 
+                  height: 14, 
+                  borderRadius: '50%', 
+                  background: DAMAGE_COLORS[d.type] || 'var(--blue)',
+                  border: '3px solid white',
+                  boxShadow: '0 0 10px rgba(0,0,0,0.8)',
+                  pointerEvents: 'none' // Let clicks pass through
+                }} 
+              />
+            );
+          })}
         </div>
-        <CarSVG view={currentView.key} zoneCounts={zoneCounts} onZone={z => setSelectedZone(z)} />
-        <div className="car-hint">↔ Swipez pour tourner • Touchez une zone</div>
+        
+        {activeTab !== 'dessus' && (
+          <div style={{ position: 'absolute', bottom: 12, left: 0, right: 0, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.6)', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <span>⟲</span> Faites glisser pour tourner le véhicule <span>⟳</span>
+          </div>
+        )}
       </div>
 
-      {/* Total damages */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, margin: '12px 0', fontSize: 13 }}>
-        <span style={{ color: 'var(--text2)' }}>Total dégâts : <strong style={{ color: degats.length > 0 ? 'var(--red)' : 'var(--green)' }}>{degats.length}</strong></span>
+      {/* Legend */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap', background: 'var(--surface)', padding: 12, borderRadius: 12 }}>
+        {LEGEND.map(l => (
+          <div key={l.type} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color }} /> {l.label}
+          </div>
+        ))}
       </div>
 
+      {/* Damages List */}
+      <div style={{ marginBottom: 100 }}>
+        <h4 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 12, textTransform: 'uppercase' }}>Dégâts enregistrés ({degats.length})</h4>
+        
+        {degats.map((d) => (
+          <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--surface)', borderRadius: 12, marginBottom: 8, border: '1px solid var(--border)' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: DAMAGE_COLORS[d.type], border: '2px solid var(--bg)' }} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: DAMAGE_COLORS[d.type] }}>
+                  {d.type.charAt(0).toUpperCase() + d.type.slice(1)}
+                </span>
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--text)' }}>{d.piece}</div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 12, color: 'var(--text3)' }}>
+                {d.photos.length > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Camera size={12} /> {d.photos.length} photo{d.photos.length > 1 ? 's' : ''}</span>}
+                {d.commentaire && <span>{d.commentaire}</span>}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Aujourd'hui</span>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer' }}><Edit2 size={16} /></button>
+              <button style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }} onClick={() => onRemoveDegat(d.id)}><Trash2 size={16} /></button>
+            </div>
+          </div>
+        ))}
+        {degats.length === 0 && (
+          <div style={{ textAlign: 'center', padding: 32, color: 'var(--text3)', fontSize: 14 }}>Aucun dégât enregistré</div>
+        )}
+      </div>
+
+      {/* Fixed Add Button */}
+      <div style={{ position: 'fixed', bottom: 70, left: 16, right: 16, zIndex: 10 }}>
+        <button className="btn btn-full" style={{ background: 'var(--accent)', color: 'white', padding: 18, fontSize: 16, borderRadius: 12, boxShadow: '0 4px 20px rgba(255,85,0,0.4)' }} onClick={handleManualAdd}>
+          <Plus size={20} /> Ajouter un dégât
+        </button>
+      </div>
+
+      {/* SafeModal for Adding Damage */}
       <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={handlePhoto} />
 
-      {/* SafeModal for Damage Zone */}
       <SafeModal
-        isOpen={selectedZone !== null}
-        onClose={() => { setSelectedZone(null); setPhotos([]); setComment(''); setDamageType('rayure'); }}
-        title={selectedZone || ''}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title="Ajouter un dégât"
         actions={
-          <button className="btn btn-primary btn-full" onClick={handleAddDamage}>
+          <button className="btn btn-primary btn-full" onClick={submitDamage} disabled={!piece.trim()}>
             <Plus size={16} /> Valider le dégât
           </button>
         }
       >
-        {/* Existing damages on this zone */}
-        {zoneDegats.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>DÉGÂTS EXISTANTS ({zoneDegats.length})</div>
-            {zoneDegats.map(d => (
-              <div key={d.id} className="damage-item" style={{ marginBottom: 8 }}>
-                <div className="damage-item-info">
-                  <div className="damage-item-piece">{DAMAGE_TYPES[d.type]}</div>
-                  {d.commentaire && <div className="damage-item-type">{d.commentaire}</div>}
-                  {d.photos && d.photos.length > 0 && <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>📷 {d.photos.length} photo(s)</div>}
-                </div>
-                <button onClick={() => onRemoveDegat(d.id)} style={{ background: 'rgba(255,51,102,0.1)', border: 'none', borderRadius: 8, padding: '6px 10px', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                  <X size={14} />
-                </button>
-              </div>
+        <div className="input-group">
+          <label className="input-label">Type de dégât</label>
+          <div className="damage-type-chips" style={{ marginBottom: 16 }}>
+            {LEGEND.map(l => (
+              <button 
+                key={l.type} 
+                className={`chip ${damageType === l.type ? 'active' : ''}`} 
+                onClick={() => setDamageType(l.type)} 
+                style={{ fontSize: 13, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, borderColor: damageType === l.type ? l.color : 'var(--border)' }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
+                {l.label}
+              </button>
             ))}
           </div>
-        )}
+        </div>
 
-        {/* Add new damage */}
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8 }}>AJOUTER UN DÉGÂT</div>
-        <div className="damage-type-chips" style={{ marginBottom: 16 }}>
-          {(Object.entries(DAMAGE_TYPES) as [DamageType, string][]).map(([k, v]) => (
-            <button key={k} className={`chip ${damageType === k ? 'active' : ''}`} onClick={() => setDamageType(k)} style={{ fontSize: 12, padding: '6px 12px' }}>
-              {v}
-            </button>
-          ))}
+        <div className="input-group">
+          <label className="input-label">Pièce concernée *</label>
+          <input className="input" placeholder="Ex: Porte avant droite..." value={piece} onChange={e => setPiece(e.target.value)} />
         </div>
         
-        <label className="input-label">Commentaire</label>
-        <input className="input" placeholder="Ex: rayure profonde..." value={comment} onChange={e => setComment(e.target.value)} style={{ marginBottom: 16 }} />
+        <div className="input-group">
+          <label className="input-label">Commentaire</label>
+          <input className="input" placeholder="Précisions..." value={comment} onChange={e => setComment(e.target.value)} />
+        </div>
         
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <label className="input-label" style={{ margin: 0 }}>Photos ({photos.length})</label>
