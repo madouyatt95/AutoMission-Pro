@@ -35,14 +35,19 @@ export default function InteractiveCarSVG({ view, onPartClick }: Props) {
       case 'gauche':
       case 'droite':
         const side = view === 'gauche' ? 'gauche' : 'droite';
+        // If left side, the car should face Right. If right side, car should face Left.
+        // The default drawing faces Left. So we flip it for the left side view.
+        const isFlipped = view === 'gauche';
         return (
-          <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
+          <svg viewBox="0 0 800 400" style={{ width: '100%', height: '100%', transform: isFlipped ? 'scaleX(-1)' : 'none' }} preserveAspectRatio="xMidYMid meet">
             <path d="M 100,250 C 100,200 150,180 220,170 C 260,120 320,100 450,100 C 580,100 660,130 700,180 C 740,190 770,220 770,260 L 770,300 L 100,300 Z" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
             
             <path d="M 230,170 C 270,120 330,105 450,105 C 550,105 610,125 650,170 L 610,170 L 450,170 L 290,170 Z" {...partStyle(`Vitres ${side}s`)} onMouseEnter={() => setHoveredPart(`Vitres ${side}s`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Vitres ${side}s`)} />
             
             <path d="M 100,250 C 100,200 150,180 230,170 L 230,300 L 100,300 Z" {...partStyle(`Aile avant ${side}`)} onMouseEnter={() => setHoveredPart(`Aile avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Aile avant ${side}`)} />
-            <circle cx="180" cy="300" r="45" fill="var(--bg)" stroke="rgba(255,255,255,0.3)" strokeWidth="2" pointerEvents="none" />
+            
+            {/* Clickable Wheels */}
+            <circle cx="180" cy="300" r="45" {...partStyle(`Roue avant ${side}`)} onMouseEnter={() => setHoveredPart(`Roue avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Roue avant ${side}`)} />
             <circle cx="180" cy="300" r="30" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="4" pointerEvents="none" />
             
             <path d="M 230,170 L 400,170 L 400,300 L 230,300 Z" {...partStyle(`Porte avant ${side}`)} onMouseEnter={() => setHoveredPart(`Porte avant ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Porte avant ${side}`)} />
@@ -50,12 +55,13 @@ export default function InteractiveCarSVG({ view, onPartClick }: Props) {
             <path d="M 400,170 L 580,170 L 580,300 L 400,300 Z" {...partStyle(`Porte arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Porte arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Porte arrière ${side}`)} />
             
             <path d="M 580,170 C 650,170 700,180 770,260 L 770,300 L 580,300 Z" {...partStyle(`Aile arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Aile arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Aile arrière ${side}`)} />
-            <circle cx="650" cy="300" r="45" fill="var(--bg)" stroke="rgba(255,255,255,0.3)" strokeWidth="2" pointerEvents="none" />
+            
+            <circle cx="650" cy="300" r="45" {...partStyle(`Roue arrière ${side}`)} onMouseEnter={() => setHoveredPart(`Roue arrière ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Roue arrière ${side}`)} />
             <circle cx="650" cy="300" r="30" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="4" pointerEvents="none" />
 
             <rect x="230" y="300" width="350" height="15" {...partStyle(`Bas de caisse ${side}`)} onMouseEnter={() => setHoveredPart(`Bas de caisse ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Bas de caisse ${side}`)} />
             
-            <path d="M 270,165 C 270,150 290,150 290,165 Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" strokeWidth="2" pointerEvents="none" />
+            <path d="M 270,165 C 270,150 290,150 290,165 Z" {...partStyle(`Rétroviseur ${side}`)} onMouseEnter={() => setHoveredPart(`Rétroviseur ${side}`)} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, `Rétroviseur ${side}`)} />
           </svg>
         );
 
@@ -73,12 +79,13 @@ export default function InteractiveCarSVG({ view, onPartClick }: Props) {
             <rect x="300" y="440" width="200" height="50" rx="10" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="3" pointerEvents="none" />
             <line x1="300" y1="465" x2="500" y2="465" stroke="rgba(255,255,255,0.1)" strokeWidth="3" pointerEvents="none" />
 
-            <path d="M 210,380 L 280,390 L 260,410 L 200,400 Z" {...partStyle('Phare avant gauche')} onMouseEnter={() => setHoveredPart('Phare avant gauche')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Phare avant gauche')} />
+            <path d="M 210,380 L 280,390 L 260,410 L 200,400 Z" {...partStyle('Phare avant droit')} onMouseEnter={() => setHoveredPart('Phare avant droit')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Phare avant droit')} />
             
-            <path d="M 590,380 L 520,390 L 540,410 L 600,400 Z" {...partStyle('Phare avant droit')} onMouseEnter={() => setHoveredPart('Phare avant droit')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Phare avant droit')} />
+            <path d="M 590,380 L 520,390 L 540,410 L 600,400 Z" {...partStyle('Phare avant gauche')} onMouseEnter={() => setHoveredPart('Phare avant gauche')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Phare avant gauche')} />
 
-            <path d="M 160,300 C 130,300 130,270 170,270 Z" {...partStyle('Rétroviseur gauche')} onMouseEnter={() => setHoveredPart('Rétroviseur gauche')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Rétroviseur gauche')} />
-            <path d="M 640,300 C 670,300 670,270 630,270 Z" {...partStyle('Rétroviseur droit')} onMouseEnter={() => setHoveredPart('Rétroviseur droit')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Rétroviseur droit')} />
+            {/* Left side of the screen is the car's right side, so Rétroviseur droit is on the left */}
+            <path d="M 160,300 C 130,300 130,270 170,270 Z" {...partStyle('Rétroviseur droit')} onMouseEnter={() => setHoveredPart('Rétroviseur droit')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Rétroviseur droit')} />
+            <path d="M 640,300 C 670,300 670,270 630,270 Z" {...partStyle('Rétroviseur gauche')} onMouseEnter={() => setHoveredPart('Rétroviseur gauche')} onMouseLeave={() => setHoveredPart(null)} onClick={(e) => handleClick(e, 'Rétroviseur gauche')} />
           </svg>
         );
 
