@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Car, FileText, Bell, Copy, Clock, TrendingUp, AlertTriangle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Car, FileText, Bell, Copy, Clock, TrendingUp, AlertTriangle, ChevronRight, Trash2 } from 'lucide-react';
 import { useMissionStore, useVehicleStore, useDocumentStore, useClientStore } from '../store';
 import { STATUS_CONFIG, DAMAGE_TYPES } from '../types';
 
@@ -29,6 +29,14 @@ export default function VehicleHistory() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button className="btn-icon btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
         <h1 style={{ fontSize: 20, fontWeight: 800, flex: 1 }}>Fiche Véhicule</h1>
+        {vehicleMissions.length === 0 && vehicle && (
+          <button className="btn-icon btn-secondary" style={{ color: 'var(--red)' }} onClick={() => {
+            useVehicleStore.getState().deleteVehicle(vehicle.id);
+            navigate(-1);
+          }}>
+            <Trash2 size={20} />
+          </button>
+        )}
       </div>
 
       {/* Vehicle Header Card */}
