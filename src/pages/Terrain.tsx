@@ -4,6 +4,7 @@ import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Sear
 import { useMissionStore, useVehicleStore, useClientStore, useCustomTypeStore } from '../store';
 import { MISSION_TYPES, CAR_BRANDS, FUEL_TYPES, GEARBOX_TYPES, VEHICLE_COLORS } from '../types';
 import SafeModal from '../components/SafeModal';
+import PlateScannerModal from '../components/PlateScannerModal';
 
 declare global {
   interface Window { SpeechRecognition: any; webkitSpeechRecognition: any; }
@@ -140,14 +141,6 @@ export default function Terrain() {
 
   const startOcrScan = () => {
     setIsScanning(true);
-    setTimeout(() => {
-      // Pick a random existing vehicle for demo
-      if (vehicles.length > 0) {
-        const v = vehicles[Math.floor(Math.random() * vehicles.length)];
-        selectAutocomplete(v);
-      }
-      setIsScanning(false);
-    }, 2000);
   };
 
   const handleAddType = () => {
@@ -214,20 +207,14 @@ export default function Terrain() {
 
   return (
     <div className="page" style={{ paddingBottom: 150 }}>
-      {isScanning && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => setIsScanning(false)} style={{ background: 'none', border: 'none', color: 'white' }}><X size={32} /></button>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            <div style={{ border: '3px solid var(--accent)', width: '80%', height: 120, position: 'relative', borderRadius: 8, overflow: 'hidden', boxShadow: '0 0 30px rgba(255,85,0,0.3)' }}>
-              <div style={{ width: '100%', height: 2, background: 'var(--accent)', boxShadow: '0 0 15px var(--accent)', position: 'absolute', top: 0, left: 0, animation: 'scan 1.5s infinite linear' }} />
-            </div>
-            <style dangerouslySetInnerHTML={{ __html: `@keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }` }} />
-          </div>
-          <div style={{ padding: 32, textAlign: 'center', color: 'white', fontWeight: 700, fontSize: 18 }}>Recherche de plaque...</div>
-        </div>
-      )}
+      <PlateScannerModal
+        isOpen={isScanning}
+        onClose={() => setIsScanning(false)}
+        onScan={(scannedPlate) => {
+          setPlaque(scannedPlate);
+          setShowAutocomplete(true);
+        }}
+      />
 
       {/* Plaque EU */}
       <div className="terrain-plaque-container" style={{ padding: '0 0 8px', position: 'relative' }}>
