@@ -44,7 +44,8 @@ export default function Missions() {
         e.plaque.includes(q) ||
         (e.vehicle?.marque || '').toUpperCase().includes(q) ||
         (e.vehicle?.modele || '').toUpperCase().includes(q) ||
-        e.allClients.some(c => c.toUpperCase().includes(q))
+        e.allClients.some(c => c.toUpperCase().includes(q)) ||
+        e.missions.some(m => (m.types || [m.type]).some(t => t.toUpperCase().includes(q)))
       );
     }
     if (statusFilter !== 'all') {
