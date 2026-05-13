@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType } from './types';
+import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType, VehicleType } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 // ==================== MISSION STORE ====================
@@ -44,6 +44,8 @@ export const useMissionStore = create<MissionStore>()(
           prestations: data.prestations || [],
           documents: data.documents || [],
           brouillon: data.brouillon ?? true,
+          usurePneus: data.usurePneus || [],
+          avancesFrais: data.avancesFrais || [],
           createdAt: now,
           updatedAt: now,
         };
@@ -153,6 +155,10 @@ export const useVehicleStore = create<VehicleStore>()(
           couleur: data.couleur,
           kilometrage: data.kilometrage,
           vin: data.vin,
+          typeVehicule: data.typeVehicule,
+          dimensionsPneus: data.dimensionsPneus,
+          carteGrise: data.carteGrise,
+          carteVerte: data.carteVerte,
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ vehicles: [vehicle, ...state.vehicles] }));
@@ -289,6 +295,28 @@ interface SettingsStore {
   autoAlertDaysRelance: number;
   updateSettings: (updates: Partial<{ tva: number; companyName: string; autoAlertDaysFacturation: number; autoAlertDaysRelance: number }>) => void;
 }
+
+// ==================== EXPENSE TYPE STORE ====================
+interface ExpenseTypeStore {
+  customExpenseTypes: string[];
+  addExpenseType: (name: string) => void;
+}
+
+export const useExpenseTypeStore = create<ExpenseTypeStore>()(
+  persist(
+    (set) => ({
+      customExpenseTypes: [],
+      addExpenseType: (name) => {
+        set((state) => ({
+          customExpenseTypes: state.customExpenseTypes.includes(name)
+            ? state.customExpenseTypes
+            : [...state.customExpenseTypes, name],
+        }));
+      },
+    }),
+    { name: 'automission-expense-types' }
+  )
+);
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, FileText, ChevronRight, Bell, RefreshCw, Car, AlertTriangle } from 'lucide-react';
 import { useMissionStore, useClientStore, useRappelStore, useVehicleStore } from '../store';
+import { STATUS_CONFIG } from '../types';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
@@ -242,13 +243,40 @@ export default function Dashboard() {
         <div className="section-header">
           <h3 className="section-title"><Car size={20} /> Derniers véhicules</h3>
         </div>
-        <div className="recent-vehicles-scroll">
-          {recentVehicles.map((plaque, i) => (
-            <div key={plaque} className="vehicle-card-mini" style={{ backgroundImage: `url(${carImages[i % carImages.length]})` }} onClick={() => navigate(`/vehicule/${encodeURIComponent(plaque)}`)}>
-              <div className="vehicle-card-plaque">{plaque}</div>
-              <div style={{ position: 'relative', zIndex: 2, width: '100%', height: 4, background: 'var(--accent-gradient)', borderRadius: 2, boxShadow: 'var(--accent-glow)' }}></div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {vehicles
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 8)
+            .map(v => {
+              const vMissions = missions.filter(m => m.plaque === v.plaque).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+              const lastM = vMissions[0];
+              const mainClient = lastM?.clients[0]?.clientName;
+              const vCA = vMissions.reduce((s, m) => s + (m.prixTTC || 0), 0);
+              const cfg = lastM ? STATUS_CONFIG[lastM.statut] : null;
+              return (
+                <div key={v.id} className="card" onClick={() => navigate(`/vehicule/${encodeURIComponent(v.plaque)}`)} style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(255,85,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Car size={22} color="var(--accent)" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 900, fontSize: 14 }}>{v.plaque}</span>
+                      {v.typeVehicule && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: 'rgba(0,191,255,0.1)', color: 'var(--blue)', fontWeight: 600 }}>{v.typeVehicule}</span>}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{v.marque || ''} {v.modele || ''}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {mainClient && <span>{mainClient}</span>}
+                      {lastM && <span>• {(lastM.types || [lastM.type]).join(', ')}</span>}
+                      {lastM && <span>• {new Date(lastM.dateTime).toLocaleDateString('fr-FR')}</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)' }}>{vCA.toLocaleString('fr-FR')} €</div>
+                    {cfg && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: cfg.bg, color: cfg.color, fontWeight: 700 }}>{cfg.label}</span>}
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>

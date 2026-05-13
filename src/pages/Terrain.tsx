@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, Camera, Mic, MicOff, Check, MapPin, ScanLine, X, Plus, Edit2, Search, Info, ChevronDown, ChevronUp } from 'lucide-react';
-import { useMissionStore, useVehicleStore, useClientStore, useCustomTypeStore } from '../store';
-import { MISSION_TYPES, CAR_BRANDS, FUEL_TYPES, GEARBOX_TYPES, VEHICLE_COLORS } from '../types';
+import { useMissionStore, useVehicleStore, useClientStore, useCustomTypeStore, useExpenseTypeStore } from '../store';
+import { MISSION_TYPES, CAR_BRANDS, FUEL_TYPES, GEARBOX_TYPES, VEHICLE_COLORS, VEHICLE_TYPES, EXPENSE_TYPES } from '../types';
 import SafeModal from '../components/SafeModal';
 import PlateScannerModal from '../components/PlateScannerModal';
 
@@ -14,8 +14,9 @@ export default function Terrain() {
   const navigate = useNavigate();
   const addMission = useMissionStore(s => s.addMission);
   const { vehicles, addVehicle, getByPlaque } = useVehicleStore();
-  const { clients } = useClientStore();
+  const { clients, addClient } = useClientStore();
   const { customTypes, addType } = useCustomTypeStore();
+  const { customExpenseTypes, addExpenseType } = useExpenseTypeStore();
 
   const [plaque, setPlaque] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -40,6 +41,23 @@ export default function Terrain() {
   const [vCouleur, setVCouleur] = useState('');
   const [vKm, setVKm] = useState('');
   const [vVin, setVVin] = useState('');
+  const [vType, setVType] = useState('');
+  const [vDimPneus, setVDimPneus] = useState('');
+
+  // Client selection
+  const [selectedClients, setSelectedClients] = useState<{ clientId: string; clientName: string; montantTTC: number; statut: string }[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+
+  // Avances de frais
+  const [expenses, setExpenses] = useState<{ id: string; type: string; montant: number; commentaire: string }[]>([]);
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [expType, setExpType] = useState('');
+  const [expMontant, setExpMontant] = useState('');
+  const [expComment, setExpComment] = useState('');
+  const [showNewExpType, setShowNewExpType] = useState(false);
+  const [newExpTypeName, setNewExpTypeName] = useState('');
 
   // Autocomplete
   const [plaqueResults, setPlaqueResults] = useState<typeof vehicles>([]);
@@ -168,6 +186,8 @@ export default function Terrain() {
         couleur: vCouleur || undefined,
         kilometrage: vKm ? parseInt(vKm) : undefined,
         vin: vVin || undefined,
+        typeVehicule: vType as any || undefined,
+        dimensionsPneus: vDimPneus || undefined,
       });
     }
 
@@ -188,6 +208,8 @@ export default function Terrain() {
       statut: 'a_facturer',
       couleur: vCouleur || undefined,
       kilometrage: vKm ? parseInt(vKm) : undefined,
+      clients: selectedClients.map(c => ({ ...c, facturationDifferee: false, statut: c.statut as 'a_facturer' | 'facture' | 'paye' })),
+      avancesFrais: expenses.map(e => ({ ...e, justificatif: undefined })),
     });
 
     setTimeout(() => {
@@ -282,6 +304,8 @@ export default function Terrain() {
             <div className="input-group"><label className="input-label">Couleur</label><select className="input" value={vCouleur} onChange={e => setVCouleur(e.target.value)}><option value="">—</option>{VEHICLE_COLORS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="input-group"><label className="input-label">Kilométrage</label><input className="input" type="number" value={vKm} onChange={e => setVKm(e.target.value)} /></div>
             <div className="input-group"><label className="input-label">VIN</label><input className="input" value={vVin} onChange={e => setVVin(e.target.value)} placeholder="Optionnel" /></div>
+            <div className="input-group"><label className="input-label">Type véhicule</label><select className="input" value={vType} onChange={e => setVType(e.target.value)}><option value="">—</option>{VEHICLE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+            <div className="input-group"><label className="input-label">Dim. pneus</label><input className="input" value={vDimPneus} onChange={e => setVDimPneus(e.target.value)} placeholder="205/55R16" /></div>
           </div>
         </div>
       )}
@@ -351,6 +375,77 @@ export default function Terrain() {
         <div className="input-label">NOTES</div>
         <textarea className="terrain-textarea" placeholder="Notes d'intervention..." value={notes} onChange={e => setNotes(e.target.value)} />
       </div>
+
+      {/* CLIENT SECTION */}
+      <div className="section" style={{ marginTop: 16 }}>
+        <div className="input-label">CLIENTS <span style={{ color: 'var(--accent)' }}>({selectedClients.length})</span></div>
+        {selectedClients.map((c, i) => (
+          <div key={c.clientId} className="card" style={{ padding: 12, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{c.clientName}</div>
+              <input className="input" type="number" step="0.01" placeholder="Montant TTC" style={{ marginTop: 6 }} value={c.montantTTC || ''} onChange={e => { const u = [...selectedClients]; u[i] = { ...u[i], montantTTC: parseFloat(e.target.value) || 0 }; setSelectedClients(u); }} />
+            </div>
+            <button onClick={() => setSelectedClients(selectedClients.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--red)' }}><X size={18} /></button>
+          </div>
+        ))}
+        <div style={{ position: 'relative' }}>
+          <input className="input" placeholder="Rechercher un client..." value={clientSearch} onChange={e => setClientSearch(e.target.value)} style={{ marginBottom: 8 }} />
+          {clientSearch && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'rgba(15,20,30,0.95)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+              {clients.filter(c => c.nom.toLowerCase().includes(clientSearch.toLowerCase()) && !selectedClients.some(sc => sc.clientId === c.id)).slice(0, 5).map(c => (
+                <div key={c.id} onClick={() => { setSelectedClients([...selectedClients, { clientId: c.id, clientName: c.nom, montantTTC: 0, statut: 'a_facturer' }]); setClientSearch(''); }} style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontWeight: 700 }}>{c.nom}</span>
+                </div>
+              ))}
+              <div onClick={() => setShowAddClient(true)} style={{ padding: '10px 16px', cursor: 'pointer', color: 'var(--accent)', fontWeight: 700 }}><Plus size={14} /> Créer un nouveau client</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* AVANCES DE FRAIS */}
+      <div className="section" style={{ marginTop: 16 }}>
+        <div className="input-label">AVANCES DE FRAIS <span style={{ color: 'var(--accent)' }}>({expenses.length})</span></div>
+        {expenses.map((exp, i) => (
+          <div key={exp.id} className="card" style={{ padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{exp.type}</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)' }}>{exp.montant.toLocaleString('fr-FR')} € {exp.commentaire && `— ${exp.commentaire}`}</div>
+            </div>
+            <button onClick={() => setExpenses(expenses.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--red)' }}><X size={16} /></button>
+          </div>
+        ))}
+        {!showAddExpense ? (
+          <button className="btn btn-secondary btn-full" onClick={() => setShowAddExpense(true)}><Plus size={16} /> Ajouter un frais</button>
+        ) : (
+          <div className="card" style={{ padding: 12 }}>
+            <div className="input-group">
+              <label className="input-label">Type</label>
+              <select className="input" value={expType} onChange={e => { if (e.target.value === '__new__') setShowNewExpType(true); else setExpType(e.target.value); }}>
+                <option value="">Sélectionner...</option>
+                {[...EXPENSE_TYPES, ...customExpenseTypes].map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="__new__">+ Ajouter un type...</option>
+              </select>
+            </div>
+            <div className="input-group"><label className="input-label">Montant (€)</label><input className="input" type="number" step="0.01" value={expMontant} onChange={e => setExpMontant(e.target.value)} /></div>
+            <div className="input-group"><label className="input-label">Commentaire</label><input className="input" value={expComment} onChange={e => setExpComment(e.target.value)} placeholder="Optionnel" /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddExpense(false)}>Annuler</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} disabled={!expType || !expMontant} onClick={() => { setExpenses([...expenses, { id: Date.now().toString(), type: expType, montant: parseFloat(expMontant) || 0, commentaire: expComment }]); setExpType(''); setExpMontant(''); setExpComment(''); setShowAddExpense(false); }}>Ajouter</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* New Client Modal */}
+      <SafeModal isOpen={showAddClient} onClose={() => setShowAddClient(false)} title="Nouveau client" actions={<button className="btn btn-primary btn-full" onClick={() => { if (newClientName.trim()) { const c = addClient({ nom: newClientName.trim() }); setSelectedClients([...selectedClients, { clientId: c.id, clientName: c.nom, montantTTC: 0, statut: 'a_facturer' }]); setNewClientName(''); setShowAddClient(false); setClientSearch(''); } }}>Créer</button>}>
+        <div className="input-group"><label className="input-label">Nom *</label><input className="input" value={newClientName} onChange={e => setNewClientName(e.target.value)} autoFocus /></div>
+      </SafeModal>
+
+      {/* New Expense Type Modal */}
+      <SafeModal isOpen={showNewExpType} onClose={() => setShowNewExpType(false)} title="Nouveau type de frais" actions={<button className="btn btn-primary btn-full" onClick={() => { if (newExpTypeName.trim()) { addExpenseType(newExpTypeName.trim()); setExpType(newExpTypeName.trim()); setNewExpTypeName(''); setShowNewExpType(false); } }}>Créer</button>}>
+        <div className="input-group"><label className="input-label">Nom</label><input className="input" value={newExpTypeName} onChange={e => setNewExpTypeName(e.target.value)} autoFocus /></div>
+      </SafeModal>
 
       {geo && (
         <div className="location-card" style={{ marginBottom: 16 }}>

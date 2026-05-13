@@ -22,6 +22,7 @@ export default function MissionDetail() {
   const [tab, setTab] = useState<Tab>('info');
   const [showDelete, setShowDelete] = useState(false);
   const [showPdfOptions, setShowPdfOptions] = useState(false);
+  const [toast, setToast] = useState('');
   const [pdfOpts, setPdfOpts] = useState({ inclureNotes: true, inclurePrix: true, inclurePhotos: true, inclureDegats: true, inclureDocs: false, inclureGeo: false, inclureSignature: true, inclureClient: true });
   const [pdfClientId, setPdfClientId] = useState<string | null>(null);
 
@@ -32,7 +33,22 @@ export default function MissionDetail() {
   };
 
   const finalizeMission = () => {
-    update({ brouillon: false });
+    // Recalculate prixTTC from prestations
+    const totalPrestations = (mission.prestations || []).reduce((s: number, p: any) => s + (p.prixTTC || 0), 0);
+    const totalFrais = (mission.avancesFrais || []).reduce((s: number, f: any) => s + (f.montant || 0), 0);
+    update({ brouillon: false, prixTTC: totalPrestations || mission.prixTTC, updatedAt: new Date().toISOString() });
+
+    // Sync clients array from prestations
+    const clientMap: Record<string, { clientId: string; clientName: string; montantTTC: number }> = {};
+    (mission.prestations || []).forEach((p: any) => {
+      if (p.clientId) {
+        if (!clientMap[p.clientId]) clientMap[p.clientId] = { clientId: p.clientId, clientName: p.clientName || '', montantTTC: 0 };
+        clientMap[p.clientId].montantTTC += p.prixTTC || 0;
+      }
+    });
+    const updatedClients = Object.values(clientMap).map(c => ({ ...c, facturationDifferee: false, statut: 'a_facturer' as const }));
+    if (updatedClients.length > 0) update({ clients: updatedClients });
+
     // Auto alert for billing
     const alertExists = rappels.some(r => r.missionId === mission.id && r.titre.includes('Facturer'));
     if (!alertExists) {
@@ -45,9 +61,17 @@ export default function MissionDetail() {
         vehiculePlaque: mission.plaque
       });
     }
+
+    // Show toast and redirect
+    setToast('Mission finalisée avec succès ✓');
+    setTimeout(() => navigate('/missions'), 1200);
   };
 
   return (
+    <>
+    {toast && (
+      <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: 'var(--green)', color: '#000', padding: '12px 24px', borderRadius: 12, fontWeight: 800, fontSize: 14, zIndex: 9999, boxShadow: '0 4px 20px rgba(0,230,118,0.4)', animation: 'fadeIn 0.3s ease' }}>{toast}</div>
+    )}
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button className="btn-icon btn-secondary" onClick={() => navigate(-1)}><ArrowLeft size={20} /></button>
@@ -137,6 +161,7 @@ export default function MissionDetail() {
         {/* No additional content needed */}
       </SafeModal>
     </div>
+    </>
   );
 }
 
@@ -352,8 +377,28 @@ function InfoTab({ mission, update, clients }: any) {
 }
 
 function DegatsTab({ mission, update }: any) {
+  const [editingTire, setEditingTire] = useState<string | null>(null);
   const removeDamage = (id: string) => {
     update({ degats: mission.degats.filter((d: Degat) => d.id !== id) });
+  };
+
+  const tires = mission.usurePneus || [];
+  const tirePositions = [
+    { key: 'avant_gauche', label: 'AV-G' },
+    { key: 'avant_droit', label: 'AV-D' },
+    { key: 'arriere_gauche', label: 'AR-G' },
+    { key: 'arriere_droit', label: 'AR-D' },
+  ];
+  const tireColors: Record<string, string> = { excellent: '#10b981', bon: '#3b82f6', moyen: '#f59e0b', a_remplacer: '#ef4444' };
+  const tireLabels: Record<string, string> = { excellent: 'Excellent', bon: 'Bon', moyen: 'Moyen', a_remplacer: 'À remplacer' };
+
+  const updateTire = (pos: string, data: any) => {
+    const existing = tires.find((t: any) => t.position === pos);
+    if (existing) {
+      update({ usurePneus: tires.map((t: any) => t.position === pos ? { ...t, ...data } : t) });
+    } else {
+      update({ usurePneus: [...tires, { id: Date.now().toString(), position: pos, etat: 'bon', photos: [], ...data }] });
+    }
   };
 
   return (
@@ -363,6 +408,52 @@ function DegatsTab({ mission, update }: any) {
         onAddDegat={(d) => update({ degats: [...mission.degats, { ...d, id: Date.now().toString() }] })}
         onRemoveDegat={removeDamage}
       />
+
+      {/* Usure Pneus */}
+      <div style={{ marginTop: 24 }}>
+        <div className="input-label" style={{ marginBottom: 12 }}>USURE DES PNEUS</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {tirePositions.map(tp => {
+            const tire = tires.find((t: any) => t.position === tp.key);
+            const etat = tire?.etat || 'bon';
+            return (
+              <div key={tp.key} className="card" onClick={() => setEditingTire(tp.key)} style={{ padding: 14, cursor: 'pointer', borderColor: tireColors[etat], borderWidth: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 6 }}>{tp.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: tireColors[etat] }} />
+                  <span style={{ fontSize: 12, color: tireColors[etat], fontWeight: 700 }}>{tireLabels[etat]}</span>
+                </div>
+                {tire?.profondeur != null && <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>{tire.profondeur} mm</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tire edit modal */}
+      <SafeModal
+        isOpen={!!editingTire}
+        onClose={() => setEditingTire(null)}
+        title={`Pneu ${tirePositions.find(t => t.key === editingTire)?.label || ''}`}
+        actions={<button className="btn btn-primary btn-full" onClick={() => setEditingTire(null)}>Valider</button>}
+      >
+        <div className="input-group">
+          <label className="input-label">État</label>
+          <div className="chips">
+            {(['excellent','bon','moyen','a_remplacer'] as const).map(e => (
+              <button key={e} className={`chip ${(tires.find((t: any) => t.position === editingTire)?.etat || 'bon') === e ? 'active' : ''}`} style={(tires.find((t: any) => t.position === editingTire)?.etat || 'bon') === e ? { background: tireColors[e] + '22', color: tireColors[e], borderColor: tireColors[e] } : {}} onClick={() => updateTire(editingTire!, { etat: e })}>{tireLabels[e]}</button>
+            ))}
+          </div>
+        </div>
+        <div className="input-group">
+          <label className="input-label">Profondeur (mm)</label>
+          <input className="input" type="number" step="0.5" placeholder="Ex: 4.5" value={tires.find((t: any) => t.position === editingTire)?.profondeur ?? ''} onChange={e => updateTire(editingTire!, { profondeur: parseFloat(e.target.value) || undefined })} />
+        </div>
+        <div className="input-group">
+          <label className="input-label">Commentaire</label>
+          <input className="input" placeholder="Usure inégale..." value={tires.find((t: any) => t.position === editingTire)?.commentaire || ''} onChange={e => updateTire(editingTire!, { commentaire: e.target.value })} />
+        </div>
+      </SafeModal>
     </div>
   );
 }

@@ -8,6 +8,10 @@ export type ReminderRepeat = 'unique' | 'hebdomadaire' | 'mensuelle';
 export type FuelType = 'Essence' | 'Diesel' | 'Hybride' | 'Électrique' | 'GPL' | 'Autre';
 export type GearboxType = 'Manuelle' | 'Automatique';
 export type ClientType = 'particulier' | 'entreprise';
+export type VehicleType = 'Citadine' | 'Berline' | 'SUV' | 'Utilitaire' | '4x4' | 'Coupé' | 'Cabriolet' | 'Monospace' | 'Poids lourd' | 'Moto' | 'Autre';
+export type TireCondition = 'excellent' | 'bon' | 'moyen' | 'a_remplacer';
+export type TirePosition = 'avant_gauche' | 'avant_droit' | 'arriere_gauche' | 'arriere_droit';
+export type ExpenseType = 'Carburant' | 'Garage' | 'Speedy' | 'Lavage' | 'Péage' | 'Parking' | 'Autre';
 
 // ==================== VEHICLE ====================
 export interface Vehicle {
@@ -23,6 +27,10 @@ export interface Vehicle {
   couleur?: string;
   kilometrage?: number;
   vin?: string;
+  typeVehicule?: VehicleType;
+  dimensionsPneus?: string;
+  carteGrise?: string; // dataUrl
+  carteVerte?: string; // dataUrl
   createdAt: string;
 }
 
@@ -57,6 +65,25 @@ export interface VoiceNote {
   dataUrl: string;
   duration: number;
   timestamp: string;
+}
+
+// ==================== USURE PNEUS ====================
+export interface UsurePneu {
+  id: string;
+  position: TirePosition;
+  profondeur?: number; // mm
+  etat: TireCondition;
+  commentaire?: string;
+  photos: Photo[];
+}
+
+// ==================== AVANCE DE FRAIS ====================
+export interface AvanceFrais {
+  id: string;
+  type: string;
+  montant: number;
+  commentaire?: string;
+  justificatif?: string; // dataUrl
 }
 
 // ==================== PRESTATION FACTURATION ====================
@@ -104,6 +131,8 @@ export interface Mission {
   documents: AppDocument[];
   brouillon: boolean;
   signature?: string;
+  usurePneus?: UsurePneu[];
+  avancesFrais?: AvanceFrais[];
   createdAt: string;
   updatedAt: string;
 }
@@ -221,3 +250,27 @@ export const CONDITION_LABELS: Record<VehicleCondition, string> = {
   moyen: 'Moyen',
   mauvais: 'Mauvais',
 };
+
+export const VEHICLE_TYPES: VehicleType[] = [
+  'Citadine', 'Berline', 'SUV', 'Utilitaire', '4x4', 'Coupé', 'Cabriolet', 'Monospace', 'Poids lourd', 'Moto', 'Autre'
+];
+
+export const TIRE_POSITIONS: { key: TirePosition; label: string }[] = [
+  { key: 'avant_gauche', label: 'Avant gauche' },
+  { key: 'avant_droit', label: 'Avant droit' },
+  { key: 'arriere_gauche', label: 'Arrière gauche' },
+  { key: 'arriere_droit', label: 'Arrière droit' },
+];
+
+export const TIRE_CONDITIONS: Record<TireCondition, { label: string; color: string }> = {
+  excellent: { label: 'Excellent', color: '#10b981' },
+  bon: { label: 'Bon', color: '#3b82f6' },
+  moyen: { label: 'Moyen', color: '#f59e0b' },
+  a_remplacer: { label: 'À remplacer', color: '#ef4444' },
+};
+
+export const EXPENSE_TYPES: string[] = [
+  'Carburant', 'Garage', 'Speedy', 'Lavage', 'Péage', 'Parking', 'Autre'
+];
+
+
