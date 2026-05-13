@@ -243,37 +243,33 @@ export default function Dashboard() {
         <div className="section-header">
           <h3 className="section-title"><Car size={20} /> Derniers véhicules</h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="recent-vehicles-scroll">
           {vehicles
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 8)
-            .map(v => {
+            .map((v, i) => {
+              const carImages = [
+                'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=400',
+                'https://images.unsplash.com/photo-1503376712351-1c2266cb2eb1?auto=format&fit=crop&q=80&w=400',
+                'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80&w=400',
+                'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&q=80&w=400',
+                'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=400'
+              ];
               const vMissions = missions.filter(m => m.plaque === v.plaque).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
               const lastM = vMissions[0];
               const mainClient = lastM?.clients[0]?.clientName;
-              const vCA = vMissions.reduce((s, m) => s + (m.prixTTC || 0), 0);
-              const cfg = lastM ? STATUS_CONFIG[lastM.statut] : null;
               return (
-                <div key={v.id} className="card" onClick={() => navigate(`/vehicule/${encodeURIComponent(v.plaque)}`)} style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(255,85,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Car size={22} color="var(--accent)" />
+                <div key={v.id} className="vehicle-card-mini" style={{ backgroundImage: `url(${carImages[i % carImages.length]})` }} onClick={() => navigate(`/vehicule/${encodeURIComponent(v.plaque)}`)}>
+                  <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div className="vehicle-card-plaque" style={{ padding: '4px 6px', fontSize: 11 }}>{v.plaque}</div>
+                    {v.typeVehicule && <span style={{ fontSize: 9, padding: '2px 4px', borderRadius: 4, background: 'rgba(0,191,255,0.8)', color: '#fff', fontWeight: 700 }}>{v.typeVehicule}</span>}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 900, fontSize: 14 }}>{v.plaque}</span>
-                      {v.typeVehicule && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: 'rgba(0,191,255,0.1)', color: 'var(--blue)', fontWeight: 600 }}>{v.typeVehicule}</span>}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{v.marque || ''} {v.modele || ''}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {mainClient && <span>{mainClient}</span>}
-                      {lastM && <span>• {(lastM.types || [lastM.type]).join(', ')}</span>}
-                      {lastM && <span>• {new Date(lastM.dateTime).toLocaleDateString('fr-FR')}</span>}
-                    </div>
+                  <div style={{ position: 'relative', zIndex: 2, marginTop: 'auto' }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.8)', marginBottom: 2 }}>{v.marque || ''} {v.modele || ''}</div>
+                    {mainClient && <div style={{ fontSize: 10, color: '#ddd', fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>{mainClient}</div>}
+                    {lastM && <div style={{ fontSize: 9, color: '#aaa', textShadow: '0 1px 2px rgba(0,0,0,0.8)', marginTop: 2 }}>{(lastM.types || [lastM.type]).join(', ')}</div>}
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)' }}>{vCA.toLocaleString('fr-FR')} €</div>
-                    {cfg && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 10, background: cfg.bg, color: cfg.color, fontWeight: 700 }}>{cfg.label}</span>}
-                  </div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 2, width: '100%', height: 3, background: 'var(--accent-gradient)', borderRadius: '0 0 2px 2px', boxShadow: 'var(--accent-glow)' }}></div>
                 </div>
               );
             })}

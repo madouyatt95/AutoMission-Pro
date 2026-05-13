@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool, Bell } from 'lucide-react';
-import { useMissionStore, useClientStore, useSettingsStore, useRappelStore } from '../store';
+import { useMissionStore, useClientStore, useSettingsStore, useRappelStore, useExpenseTypeStore } from '../store';
 import SignaturePad from '../components/SignaturePad';
 import SafeModal from '../components/SafeModal';
 import Vehicle360DamagePicker from '../components/Vehicle360DamagePicker';
 import { generateRapportExpertise, generateFacture } from '../utils/exportPdf';
-import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
+import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, EXPENSE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
 
 type Tab = 'info' | 'degats' | 'billing' | 'docs';
 
@@ -176,6 +176,29 @@ function InfoTab({ mission, update, clients }: any) {
 
   const { addRappel, rappels } = useRappelStore();
   const settings = useSettingsStore();
+  const { customExpenseTypes, addExpenseType } = useExpenseTypeStore();
+
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [expType, setExpType] = useState('');
+  const [expMontant, setExpMontant] = useState('');
+  const [expComment, setExpComment] = useState('');
+  const [showNewExpType, setShowNewExpType] = useState(false);
+  const [newExpTypeName, setNewExpTypeName] = useState('');
+
+  const handleAddExpense = () => {
+    if (!expType || !expMontant) return;
+    const newExpenses = [...(mission.avancesFrais || []), {
+      id: Date.now().toString(),
+      type: expType,
+      montant: parseFloat(expMontant) || 0,
+      commentaire: expComment
+    }];
+    update({ avancesFrais: newExpenses });
+    setExpType('');
+    setExpMontant('');
+    setExpComment('');
+    setShowAddExpense(false);
+  };
 
   const handleStatusChange = (newStatus: MissionStatus) => {
     update({ statut: newStatus });
@@ -307,6 +330,44 @@ function InfoTab({ mission, update, clients }: any) {
         <label className="input-label">Prix TTC (€)</label>
         <input className="input" type="number" step="0.01" placeholder="0.00" value={mission.prixTTC ?? ''} onChange={e => update({ prixTTC: parseFloat(e.target.value) || undefined })} />
       </div>
+
+      {/* AVANCES DE FRAIS */}
+      <div className="section" style={{ marginTop: 16 }}>
+        <div className="input-label">AVANCES DE FRAIS <span style={{ color: 'var(--accent)' }}>({(mission.avancesFrais || []).length})</span></div>
+        {(mission.avancesFrais || []).map((exp: any, i: number) => (
+          <div key={exp.id} className="card" style={{ padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{exp.type}</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)' }}>{exp.montant.toLocaleString('fr-FR')} € {exp.commentaire && `— ${exp.commentaire}`}</div>
+            </div>
+            <button onClick={() => update({ avancesFrais: mission.avancesFrais.filter((_: any, j: number) => j !== i) })} style={{ background: 'none', border: 'none', color: 'var(--red)' }}><X size={16} /></button>
+          </div>
+        ))}
+        {!showAddExpense ? (
+          <button className="btn btn-secondary btn-full" onClick={() => setShowAddExpense(true)}><Plus size={16} /> Ajouter un frais</button>
+        ) : (
+          <div className="card" style={{ padding: 12 }}>
+            <div className="input-group" style={{ marginBottom: 12 }}>
+              <label className="input-label">Type</label>
+              <select className="input" value={expType} onChange={e => { if (e.target.value === '__new__') setShowNewExpType(true); else setExpType(e.target.value); }}>
+                <option value="">Sélectionner...</option>
+                {[...EXPENSE_TYPES, ...customExpenseTypes].map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="__new__">+ Ajouter un type...</option>
+              </select>
+            </div>
+            <div className="input-group" style={{ marginBottom: 12 }}><label className="input-label">Montant (€)</label><input className="input" type="number" step="0.01" value={expMontant} onChange={e => setExpMontant(e.target.value)} /></div>
+            <div className="input-group" style={{ marginBottom: 12 }}><label className="input-label">Commentaire</label><input className="input" value={expComment} onChange={e => setExpComment(e.target.value)} placeholder="Optionnel" /></div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" style={{ flex: 1, padding: 10 }} onClick={() => setShowAddExpense(false)}>Annuler</button>
+              <button className="btn btn-primary" style={{ flex: 1, padding: 10 }} disabled={!expType || !expMontant} onClick={handleAddExpense}>Ajouter</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <SafeModal isOpen={showNewExpType} onClose={() => setShowNewExpType(false)} title="Nouveau type de frais" actions={<button className="btn btn-primary btn-full" onClick={() => { if (newExpTypeName.trim()) { addExpenseType(newExpTypeName.trim()); setExpType(newExpTypeName.trim()); setNewExpTypeName(''); setShowNewExpType(false); } }}>Créer</button>}>
+        <div className="input-group"><label className="input-label">Nom</label><input className="input" value={newExpTypeName} onChange={e => setNewExpTypeName(e.target.value)} autoFocus /></div>
+      </SafeModal>
 
       <div className="input-group">
         <label className="input-label">Notes</label>
