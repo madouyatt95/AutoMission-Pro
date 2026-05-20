@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Degat, DamageType, VehicleView } from '../types';
 import { Plus, Camera, X, Edit2, Trash2 } from 'lucide-react';
 import SafeModal from './SafeModal';
-import InteractiveCarSVG from './InteractiveCarSVG';
 
 interface Props {
   degats: Degat[];
@@ -20,7 +19,31 @@ const UI_TABS = [
   { id: 'dessus', label: 'Dessus' }
 ];
 
-const VIEWS: VehicleView[] = ['avant', 'droite', 'arriere', 'gauche'];
+// The 9 views of our 360 engine
+type EngineView = 'avant' | 'avant_droit' | 'droite' | 'arriere_droit' | 'arriere' | 'arriere_gauche' | 'gauche' | 'avant_gauche' | 'dessus';
+
+const ENGINE_VIEWS: { key: EngineView; label: string; mapTo: VehicleView }[] = [
+  { key: 'avant', label: 'Avant', mapTo: 'avant' },
+  { key: 'avant_droit', label: 'Avant Droit', mapTo: 'droite' },
+  { key: 'droite', label: 'Droite', mapTo: 'droite' },
+  { key: 'arriere_droit', label: 'Arrière Droit', mapTo: 'droite' },
+  { key: 'arriere', label: 'Arrière', mapTo: 'arriere' },
+  { key: 'arriere_gauche', label: 'Arrière Gauche', mapTo: 'gauche' },
+  { key: 'gauche', label: 'Gauche', mapTo: 'gauche' },
+  { key: 'avant_gauche', label: 'Avant Gauche', mapTo: 'gauche' },
+]; // Dessus is handled separately
+
+const CAR_IMAGES: Record<EngineView, string> = {
+  avant: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?q=80&w=800&auto=format&fit=crop',
+  avant_droit: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Side right
+  droite: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop',
+  arriere_droit: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop',
+  arriere: 'https://images.unsplash.com/photo-1616422285623-13ff0162193c?q=80&w=800&auto=format&fit=crop',
+  arriere_gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  avant_gauche: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?q=80&w=800&auto=format&fit=crop', // Flipped later
+  dessus: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=800&auto=format&fit=crop',
+};
 
 const LEGEND = [
   { type: 'impact' as DamageType, color: 'var(--red)', label: 'Impact' },
@@ -42,7 +65,7 @@ const DAMAGE_COLORS: Record<DamageType, string> = {
 
 export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDegat }: Props) {
   const [activeTab, setActiveTab] = useState('360');
-  const [viewIdx, setViewIdx] = useState(0); // 0 to 3 for 'avant', 'droite', 'arriere', 'gauche'
+  const [viewIdx, setViewIdx] = useState(0); // 0 to 7 for 360, 8 for dessus
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempCoords, setTempCoords] = useState<{ x: number, y: number } | null>(null);
@@ -53,16 +76,20 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
   const [photos, setPhotos] = useState<string[]>([]);
   
   const touchStart = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const currentView: VehicleView = activeTab === 'dessus' ? 'dessus' : VIEWS[viewIdx];
+  const currentViewKey = activeTab === 'dessus' ? 'dessus' : ENGINE_VIEWS[viewIdx].key;
+  const currentMapTo = activeTab === 'dessus' ? 'dessus' : ENGINE_VIEWS[viewIdx].mapTo;
+  
+  const isFlipped = ['gauche', 'arriere_gauche', 'avant_gauche'].includes(currentViewKey);
 
   // Auto-switch engine view when clicking tabs
   useEffect(() => {
     if (activeTab === 'avant') setViewIdx(0);
-    else if (activeTab === 'droite') setViewIdx(1);
-    else if (activeTab === 'arriere') setViewIdx(2);
-    else if (activeTab === 'gauche') setViewIdx(3);
+    else if (activeTab === 'droite') setViewIdx(2);
+    else if (activeTab === 'arriere') setViewIdx(4);
+    else if (activeTab === 'gauche') setViewIdx(6);
   }, [activeTab]);
 
   const handleSwipeStart = (x: number) => { touchStart.current = x; };
@@ -70,15 +97,20 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
     if (activeTab === 'dessus') return; // no swipe on top view
     const diff = touchStart.current - x;
     if (Math.abs(diff) > 40) {
-      if (diff > 0) setViewIdx(i => (i + 1) % 4);
-      else setViewIdx(i => (i - 1 + 4) % 4);
+      if (diff > 0) setViewIdx(i => (i + 1) % 8);
+      else setViewIdx(i => (i - 1 + 8) % 8);
       setActiveTab('360'); // switch back to 360 mode
     }
   };
 
-  const handlePartClick = (partName: string, x: number, y: number) => {
+  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
     setTempCoords({ x, y });
-    setPiece(partName);
+    setPiece(guessPieceFromCoords(currentViewKey, x, y));
     setIsModalOpen(true);
   };
 
@@ -86,6 +118,22 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
     setTempCoords(null);
     setPiece('');
     setIsModalOpen(true);
+  };
+
+  const guessPieceFromCoords = (view: string, x: number, y: number) => {
+    // Basic heuristic mapping for quick data entry
+    if (view === 'avant') {
+      if (y < 40) return 'Pare-brise';
+      if (y < 60) return 'Capot';
+      return 'Pare-choc avant';
+    }
+    if (view.includes('droite') || view.includes('gauche')) {
+      if (y > 70) return 'Bas de caisse';
+      if (x < 30) return 'Aile avant';
+      if (x > 70) return 'Aile arrière';
+      return 'Portière';
+    }
+    return 'Carrosserie'; // default
   };
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +153,7 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
     if (!piece) return alert('Veuillez préciser la pièce (ex: Capot)');
     onAddDegat({
       piece,
-      vue: currentView,
+      vue: currentMapTo,
       type: damageType,
       commentaire: comment || undefined,
       photos: photos.map((dataUrl, idx) => ({ id: Date.now().toString() + idx, dataUrl, timestamp: new Date().toISOString() })),
@@ -151,6 +199,7 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
 
       {/* Main Engine Area */}
       <div 
+        ref={containerRef}
         style={{ 
           position: 'relative', 
           width: '100%', 
@@ -166,23 +215,35 @@ export default function Vehicle360DamagePicker({ degats, onAddDegat, onRemoveDeg
         onMouseDown={e => handleSwipeStart(e.clientX)}
         onMouseUp={e => handleSwipeEnd(e.clientX)}
       >
-        <div style={{ width: '100%', height: '100%' }}>
-          <InteractiveCarSVG view={currentView} onPartClick={handlePartClick} />
-        </div>
+        <img 
+          src={CAR_IMAGES[currentViewKey]} 
+          alt="Car View" 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover',
+            transform: isFlipped ? 'scaleX(-1)' : 'none',
+            userSelect: 'none',
+            pointerEvents: 'none'
+          }} 
+        />
         
-        {/* Click layer markers */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {/* Click layer */}
+        <div style={{ position: 'absolute', inset: 0, cursor: 'crosshair' }} onClick={handleImageClick}>
           {/* Render markers for this view */}
           {degats.map(d => {
-            if (d.vue !== currentView) return null;
+            if (d.vue !== currentMapTo) return null;
             if (!d.x || !d.y) return null; // Only render coordinate-based ones here
+            
+            // Re-flip X if the image is flipped
+            const renderX = isFlipped ? 100 - d.x : d.x;
             
             return (
               <div 
                 key={d.id} 
                 style={{ 
                   position: 'absolute', 
-                  left: `${d.x}%`, 
+                  left: `${renderX}%`, 
                   top: `${d.y}%`, 
                   transform: 'translate(-50%, -50%)',
                   width: 14, 

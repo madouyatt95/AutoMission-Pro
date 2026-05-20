@@ -22,6 +22,15 @@ export const useMissionStore = create<MissionStore>()(
       addMission: (data) => {
         const now = new Date().toISOString();
         const types = data.types || (data.type ? [data.type] : []);
+        const initialStatus = data.statutPhysique || 'en_possession';
+        const initialHistory = data.historiqueStatuts || [
+          {
+            id: uuidv4(),
+            statut: initialStatus,
+            start: now
+          }
+        ];
+
         const mission: Mission = {
           id: uuidv4(),
           plaque: data.plaque.toUpperCase().trim(),
@@ -48,15 +57,51 @@ export const useMissionStore = create<MissionStore>()(
           avancesFrais: data.avancesFrais || [],
           createdAt: now,
           updatedAt: now,
+          // Nouveaux champs logistiques
+          keysPossessed: data.keysPossessed ?? 1,
+          docsInPossession: data.docsInPossession || [],
+          statutPhysique: initialStatus,
+          historiqueStatuts: initialHistory,
+          travauxReels: data.travauxReels || [],
         };
         set((state) => ({ missions: [mission, ...state.missions] }));
         return mission;
       },
       updateMission: (id, updates) => {
         set((state) => ({
-          missions: state.missions.map((m) =>
-            m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m
-          ),
+          missions: state.missions.map((m) => {
+            if (m.id !== id) return m;
+
+            const newStatus = updates.statutPhysique;
+            let updatedHistory = [...(m.historiqueStatuts || [])];
+
+            if (newStatus && newStatus !== m.statutPhysique) {
+              const now = new Date().toISOString();
+              // Clôturer l'ancien statut
+              updatedHistory = updatedHistory.map(h => 
+                !h.end ? { ...h, end: now } : h
+              );
+              // Ajouter le nouveau
+              updatedHistory.push({
+                id: uuidv4(),
+                statut: newStatus,
+                start: now,
+                prestataire: (updates as any)._prestataire || '',
+                commentaire: (updates as any)._commentaire || ''
+              });
+            }
+
+            const cleanedUpdates = { ...updates };
+            delete (cleanedUpdates as any)._prestataire;
+            delete (cleanedUpdates as any)._commentaire;
+
+            return {
+              ...m,
+              ...cleanedUpdates,
+              historiqueStatuts: updatedHistory,
+              updatedAt: new Date().toISOString()
+            };
+          }),
         }));
       },
       deleteMission: (id) => {
@@ -142,6 +187,16 @@ export const useVehicleStore = create<VehicleStore>()(
     (set, get) => ({
       vehicles: [],
       addVehicle: (data) => {
+        const now = new Date().toISOString();
+        const initialStatus = data.statutPhysique || 'en_possession';
+        const initialHistory = data.historiqueStatuts || [
+          {
+            id: uuidv4(),
+            statut: initialStatus,
+            start: now
+          }
+        ];
+
         const vehicle: Vehicle = {
           id: uuidv4(),
           plaque: data.plaque.toUpperCase().trim(),
@@ -159,14 +214,51 @@ export const useVehicleStore = create<VehicleStore>()(
           dimensionsPneus: data.dimensionsPneus,
           carteGrise: data.carteGrise,
           carteVerte: data.carteVerte,
-          createdAt: new Date().toISOString(),
+          createdAt: now,
+          // Nouveaux champs logistiques
+          keysPossessed: data.keysPossessed ?? 1,
+          docsInPossession: data.docsInPossession || [],
+          statutPhysique: initialStatus,
+          historiqueStatuts: initialHistory,
+          travauxReels: data.travauxReels || [],
         };
         set((state) => ({ vehicles: [vehicle, ...state.vehicles] }));
         return vehicle;
       },
       updateVehicle: (id, updates) => {
         set((state) => ({
-          vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, ...updates } : v)),
+          vehicles: state.vehicles.map((v) => {
+            if (v.id !== id) return v;
+
+            const newStatus = updates.statutPhysique;
+            let updatedHistory = [...(v.historiqueStatuts || [])];
+
+            if (newStatus && newStatus !== v.statutPhysique) {
+              const now = new Date().toISOString();
+              // Clôturer l'ancien statut
+              updatedHistory = updatedHistory.map(h => 
+                !h.end ? { ...h, end: now } : h
+              );
+              // Ajouter le nouveau
+              updatedHistory.push({
+                id: uuidv4(),
+                statut: newStatus,
+                start: now,
+                prestataire: (updates as any)._prestataire || '',
+                commentaire: (updates as any)._commentaire || ''
+              });
+            }
+
+            const cleanedUpdates = { ...updates };
+            delete (cleanedUpdates as any)._prestataire;
+            delete (cleanedUpdates as any)._commentaire;
+
+            return {
+              ...v,
+              ...cleanedUpdates,
+              historiqueStatuts: updatedHistory
+            };
+          }),
         }));
       },
       deleteVehicle: (id) => {

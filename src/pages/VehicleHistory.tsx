@@ -1,9 +1,31 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Car, FileText, Bell, Clock, AlertTriangle, ChevronRight, Trash2, Upload, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Car, FileText, Bell, Clock, AlertTriangle, ChevronRight, Trash2, Upload, Edit2, Key, DollarSign, Wrench, CheckCircle } from 'lucide-react';
 import { useMissionStore, useVehicleStore, useDocumentStore, useClientStore } from '../store';
-import { STATUS_CONFIG, DAMAGE_TYPES, VEHICLE_TYPES, VehicleType } from '../types';
+import { STATUS_CONFIG, DAMAGE_TYPES, VEHICLE_TYPES, VehicleType, PHYSICAL_STATUS_CONFIG, TRAVAIL_STATUS_CONFIG, PhysicalStatus, TravailStatus, TravailReel } from '../types';
 import SafeModal from '../components/SafeModal';
+import { v4 as uuidv4 } from 'uuid';
+
+export function formatDuration(startStr: string, endStr?: string) {
+  const start = new Date(startStr);
+  const end = endStr ? new Date(endStr) : new Date();
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs <= 0) return '0 min';
+  
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffDays > 0) {
+    const remainingHours = diffHours % 24;
+    return `${diffDays}j ${remainingHours}h`;
+  }
+  if (diffHours > 0) {
+    const remainingMins = diffMins % 60;
+    return `${diffHours}h ${remainingMins}m`;
+  }
+  return `${diffMins} min`;
+}
 
 export default function VehicleHistory() {
   const { plaque } = useParams();
@@ -31,6 +53,17 @@ export default function VehicleHistory() {
   const carteGriseRef = useRef<HTMLInputElement>(null);
   const carteVerteRef = useRef<HTMLInputElement>(null);
 
+  // States pour les travaux et statuts physiques
+  const [showAddTravail, setShowAddTravail] = useState(false);
+  const [newTravailType, setNewTravailType] = useState('Carrosserie');
+  const [newTravailMontant, setNewTravailMontant] = useState('');
+  const [newTravailCommentaire, setNewTravailCommentaire] = useState('');
+
+  const [showChangerStatut, setShowChangerStatut] = useState(false);
+  const [nouveauStatut, setNouveauStatut] = useState<PhysicalStatus>('en_possession');
+  const [statutPrestataire, setStatutPrestataire] = useState('');
+  const [statutCommentaire, setStatutCommentaire] = useState('');
+
   const handleUpload = (field: 'carteGrise' | 'carteVerte', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !vehicle) return;
@@ -40,6 +73,65 @@ export default function VehicleHistory() {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // Finance Calculations
+  const totalAvances = vehicleMissions.reduce((s, m) => s + (m.avancesFrais?.reduce((ss, f) => ss + f.montant, 0) || 0), 0);
+  const totalTravauxEngages = vehicle?.travauxReels?.filter(t => t.statut === 'fait').reduce((s, t) => s + t.montant, 0) || 0;
+  const totalTravauxAFaire = vehicle?.travauxReels?.filter(t => t.statut === 'a_faire' || t.statut === 'en_cours' || t.statut === 'en_attente_devis').reduce((s, t) => s + t.montant, 0) || 0;
+  
+  // Total facturé client (les prestations facturées sur les missions du véhicule)
+  const totalPrestationsFacturees = vehicleMissions.reduce((s, m) => s + (m.prixTTC || 0), 0);
+  
+  // Dans notre cas : general total dépensé pour remettre le véhicule en état
+  const totalDepensesGenerales = totalAvances + totalTravauxEngages;
+
+  const handleAddTravail = () => {
+    if (!vehicle || !newTravailType) return;
+    const nouveauTravail: TravailReel = {
+      id: uuidv4(),
+      type: newTravailType,
+      montant: parseFloat(newTravailMontant) || 0,
+      statut: 'a_faire',
+      commentaire: newTravailCommentaire
+    };
+    const currentTravaux = vehicle.travauxReels || [];
+    updateVehicle(vehicle.id, {
+      travauxReels: [...currentTravaux, nouveauTravail]
+    });
+    setNewTravailType('Carrosserie');
+    setNewTravailMontant('');
+    setNewTravailCommentaire('');
+    setShowAddTravail(false);
+  };
+
+  const handleChangerStatutPhysique = () => {
+    if (!vehicle || !nouveauStatut) return;
+    
+    // On passe les variables temporaires de prestataire et commentaire
+    updateVehicle(vehicle.id, {
+      statutPhysique: nouveauStatut,
+      _prestataire: statutPrestataire,
+      _commentaire: statutCommentaire
+    } as any);
+
+    setStatutPrestataire('');
+    setStatutCommentaire('');
+    setShowChangerStatut(false);
+  };
+
+  const toggleTravailStatut = (travailId: string, currentStatut: TravailStatus) => {
+    if (!vehicle) return;
+    const statuts: TravailStatus[] = ['a_faire', 'en_cours', 'fait', 'ne_pas_faire'];
+    const currentIndex = statuts.indexOf(currentStatut);
+    const nextIndex = (currentIndex + 1) % statuts.length;
+    const nextStatut = statuts[nextIndex];
+
+    const currentTravaux = vehicle.travauxReels || [];
+    const updated = currentTravaux.map(t => 
+      t.id === travailId ? { ...t, statut: nextStatut } : t
+    );
+    updateVehicle(vehicle.id, { travauxReels: updated });
   };
 
   return (
@@ -67,16 +159,66 @@ export default function VehicleHistory() {
           {vehicle && (
             <>
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{vehicle.marque} {vehicle.modele}</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)', display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 13, color: 'var(--text2)', display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
                 {vehicle.typeVehicule && <span style={{ padding: '2px 10px', borderRadius: 8, background: 'rgba(0,191,255,0.1)', color: 'var(--blue)', fontWeight: 700 }}>{vehicle.typeVehicule}</span>}
                 {vehicle.annee && <span>{vehicle.annee}</span>}
                 {vehicle.couleur && <span>• {vehicle.couleur}</span>}
                 {vehicle.carburant && <span>• {vehicle.carburant}</span>}
                 {vehicle.boiteVitesses && <span>• {vehicle.boiteVitesses}</span>}
               </div>
-              {vehicle.kilometrage && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{vehicle.kilometrage.toLocaleString('fr-FR')} km</div>}
-              {vehicle.dimensionsPneus && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Pneus: {vehicle.dimensionsPneus}</div>}
-              {vehicle.vin && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--mono)' }}>VIN: {vehicle.vin}</div>}
+              
+              {/* Badges logistiques premium */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 16, marginBottom: 12 }}>
+                {/* Clés */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(255,255,255,0.03)', border: `1px solid ${
+                  (vehicle.keysPossessed ?? 1) === 0 ? 'var(--red)' : (vehicle.keysPossessed ?? 1) === 1 ? 'var(--accent)' : 'var(--green)'
+                }`, fontSize: 12, fontWeight: 700 }}>
+                  <Key size={12} color={(vehicle.keysPossessed ?? 1) === 0 ? 'var(--red)' : 'var(--accent)'} />
+                  <span>
+                    {(vehicle.keysPossessed ?? 1) === 0 ? '0 clé ❌' : Array(vehicle.keysPossessed ?? 1).fill('🔑').join('')}
+                    {(vehicle.keysPossessed ?? 1) >= 3 ? ' +' : ''}
+                  </span>
+                </div>
+
+                {/* Documents */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <span style={{ padding: '4px 10px', borderRadius: 8, background: vehicle.docsInPossession?.includes('carte_grise') ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: vehicle.docsInPossession?.includes('carte_grise') ? 'var(--green)' : 'var(--red)', fontSize: 11, fontWeight: 700 }}>
+                    CG {vehicle.docsInPossession?.includes('carte_grise') ? '✓' : '✗'}
+                  </span>
+                  <span style={{ padding: '4px 10px', borderRadius: 8, background: vehicle.docsInPossession?.includes('assurance') ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: vehicle.docsInPossession?.includes('assurance') ? 'var(--green)' : 'var(--red)', fontSize: 11, fontWeight: 700 }}>
+                    Verte {vehicle.docsInPossession?.includes('assurance') ? '✓' : '✗'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Localisation / Statut actuel */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: 14 }}>
+                <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 800, letterSpacing: 1 }}>LOCALISATION / STATUT :</span>
+                <button 
+                  className="chip active animate-hover" 
+                  onClick={() => {
+                    setNouveauStatut(vehicle.statutPhysique || 'en_possession');
+                    setShowChangerStatut(true);
+                  }}
+                  style={{
+                    background: PHYSICAL_STATUS_CONFIG[vehicle.statutPhysique || 'en_possession'].bg,
+                    color: PHYSICAL_STATUS_CONFIG[vehicle.statutPhysique || 'en_possession'].color,
+                    border: `1px solid ${PHYSICAL_STATUS_CONFIG[vehicle.statutPhysique || 'en_possession'].color}`,
+                    padding: '6px 16px',
+                    borderRadius: 20,
+                    fontWeight: 850,
+                    fontSize: 13,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}
+                >
+                  {PHYSICAL_STATUS_CONFIG[vehicle.statutPhysique || 'en_possession'].label} ⚡ Modifier
+                </button>
+              </div>
+
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 14, display: 'flex', gap: 12, justifyContent: 'center' }}>
+                {vehicle.kilometrage && <span>{vehicle.kilometrage.toLocaleString('fr-FR')} km</span>}
+                {vehicle.dimensionsPneus && <span>• Pneus: {vehicle.dimensionsPneus}</span>}
+              </div>
             </>
           )}
         </div>
@@ -89,7 +231,7 @@ export default function VehicleHistory() {
           <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>MISSIONS</div>
         </div>
         <div className="card" style={{ padding: 14, textAlign: 'center' }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--green)' }}>{totalCA.toLocaleString('fr-FR')}€</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--green)' }}>{totalPrestationsFacturees.toLocaleString('fr-FR')}€</div>
           <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>CA TOTAL</div>
         </div>
         <div className="card" style={{ padding: 14, textAlign: 'center' }}>
@@ -115,6 +257,152 @@ export default function VehicleHistory() {
           )}
         </div>
       )}
+
+      {/* Synthèse Financière Premium */}
+      <div className="section">
+        <h3 className="section-title"><DollarSign size={18} /> Synthèse Financière</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          {/* Avances de frais (Bleu) */}
+          <div className="card" style={{ padding: 16, position: 'relative', borderLeft: '4px solid var(--blue)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, letterSpacing: 0.5 }}>AVANCES DE FRAIS</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--blue)', marginTop: 4 }}>{totalAvances.toLocaleString('fr-FR')} €</div>
+            <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 4 }}>Carburant, péage, parking...</div>
+          </div>
+          
+          {/* Travaux réels (Violet) */}
+          <div className="card" style={{ padding: 16, position: 'relative', borderLeft: '4px solid #8b5cf6' }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, letterSpacing: 0.5 }}>TRAVAUX RÉELS</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#8b5cf6', marginTop: 4 }}>{totalTravauxEngages.toLocaleString('fr-FR')} €</div>
+            <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 4 }}>Carrosserie, vitrage faits</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text2)' }}>CA prestations facturé client</span>
+              <span style={{ fontWeight: 700, color: 'var(--green)' }}>{totalPrestationsFacturees.toLocaleString('fr-FR')} €</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text2)' }}>Dépenses logistiques (Avances + Travaux)</span>
+              <span style={{ fontWeight: 700, color: 'var(--red)' }}>-{totalDepensesGenerales.toLocaleString('fr-FR')} €</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+              <span style={{ color: 'var(--text2)' }}>Travaux restants à engager</span>
+              <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{totalTravauxAFaire.toLocaleString('fr-FR')} €</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800 }}>
+              <span style={{ color: 'var(--text1)' }}>Marge opérationnelle estimée</span>
+              <span style={{ color: (totalPrestationsFacturees - totalDepensesGenerales) >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                {(totalPrestationsFacturees - totalDepensesGenerales).toLocaleString('fr-FR')} €
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Module Travaux à effectuer */}
+      <div className="section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 className="section-title" style={{ margin: 0 }}><Wrench size={18} /> Travaux à effectuer / réalisés</h3>
+          <button className="btn btn-secondary btn-sm animate-hover" onClick={() => setShowAddTravail(true)} style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Plus size={12} /> Ajouter
+          </button>
+        </div>
+        
+        <div className="card" style={{ padding: 16 }}>
+          {(!vehicle?.travauxReels || vehicle.travauxReels.length === 0) ? (
+            <div style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', padding: '10px 0' }}>Aucun travail planifié ou réalisé</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {vehicle.travauxReels.map((t) => {
+                const tCfg = TRAVAIL_STATUS_CONFIG[t.statut];
+                return (
+                  <div key={t.id} style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 750 }}>{t.type}</div>
+                      {t.commentaire && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{t.commentaire}</div>}
+                      <div style={{ fontSize: 12, color: '#8b5cf6', fontWeight: 600, marginTop: 2 }}>{t.montant.toLocaleString('fr-FR')} €</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button 
+                        onClick={() => toggleTravailStatut(t.id, t.statut)}
+                        className="animate-hover"
+                        style={{
+                          fontSize: 11,
+                          padding: '4px 10px',
+                          borderRadius: 12,
+                          background: tCfg.bg,
+                          color: tCfg.color,
+                          border: `1px solid ${tCfg.color}`,
+                          fontWeight: 800,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {tCfg.label}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const current = vehicle.travauxReels || [];
+                          updateVehicle(vehicle.id, { travauxReels: current.filter(x => x.id !== t.id) });
+                        }}
+                        style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Timeline des ateliers */}
+      <div className="section">
+        <h3 className="section-title"><Clock size={18} /> Timeline de présence en Atelier</h3>
+        <div className="card" style={{ padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
+          {(!vehicle?.historiqueStatuts || vehicle.historiqueStatuts.length === 0) ? (
+            <div style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', padding: '10px 0' }}>Aucun séjour en atelier enregistré</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, position: 'relative' }}>
+              {/* Ligne verticale */}
+              <div style={{ position: 'absolute', top: 8, bottom: 8, left: 7, width: 2, background: 'rgba(255,255,255,0.06)' }} />
+              
+              {vehicle.historiqueStatuts.map((h) => {
+                const cfg = PHYSICAL_STATUS_CONFIG[h.statut];
+                const duration = formatDuration(h.start, h.end);
+                return (
+                  <div key={h.id} style={{ display: 'flex', gap: 16, position: 'relative', zIndex: 1 }}>
+                    {/* Point d'étape */}
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: cfg.color, border: '4px solid var(--card-bg)', boxShadow: '0 0 8px rgba(0,0,0,0.3)', marginTop: 2, flexShrink: 0 }} />
+                    
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 800, fontSize: 14, color: cfg.color }}>{cfg.label}</span>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'rgba(255,255,255,0.05)', color: 'var(--text3)', fontWeight: 600 }}>{duration}</span>
+                      </div>
+                      
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                        {new Date(h.start).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {h.end && ` ➔ ${new Date(h.end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                      </div>
+                      
+                      {(h.prestataire || h.commentaire) && (
+                        <div style={{ fontSize: 12, color: 'var(--text3)', background: 'rgba(0,0,0,0.1)', padding: '6px 10px', borderRadius: 6, marginTop: 6, borderLeft: `2px solid ${cfg.color}` }}>
+                          {h.prestataire && <strong>{h.prestataire}</strong>}
+                          {h.commentaire && `${h.prestataire ? ' : ' : ''}${h.commentaire}`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Documents Upload */}
       <div className="section">
@@ -218,7 +506,7 @@ export default function VehicleHistory() {
       )}
 
       {/* Edit Vehicle Modal */}
-      <SafeModal isOpen={editing} onClose={() => setEditing(false)} title="Modifier le véhicule" actions={<button className="btn btn-primary btn-full" onClick={() => setEditing(false)}>Fermer</button>}>
+      <SafeModal isOpen={editing} onClose={() => setEditing(false)} title="Modifier le véhicule" actions={<button className="btn btn-primary btn-full animate-hover" onClick={() => setEditing(false)}>Enregistrer</button>}>
         {vehicle && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="input-group"><label className="input-label">Type de véhicule</label>
@@ -233,8 +521,129 @@ export default function VehicleHistory() {
             <div className="input-group"><label className="input-label">Kilométrage</label>
               <input className="input" type="number" value={vehicle.kilometrage || ''} onChange={e => updateVehicle(vehicle.id, { kilometrage: parseInt(e.target.value) || undefined })} />
             </div>
+            
+            {/* Clés & Documents logistiques */}
+            <div className="input-group"><label className="input-label">Nombre de clés en possession</label>
+              <select className="input" value={vehicle.keysPossessed ?? 1} onChange={e => updateVehicle(vehicle.id, { keysPossessed: parseInt(e.target.value) as any })}>
+                <option value="0">0 clé (Manquante)</option>
+                <option value="1">1 clé</option>
+                <option value="2">2 clés</option>
+                <option value="3">3 clés ou plus</option>
+              </select>
+            </div>
+
+            <div className="input-group">
+              <label className="input-label" style={{ marginBottom: 6 }}>Documents reçus</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={vehicle.docsInPossession?.includes('carte_grise') || false} 
+                    onChange={e => {
+                      const docs = vehicle.docsInPossession || [];
+                      const nextDocs = e.target.checked ? [...docs, 'carte_grise'] : docs.filter(x => x !== 'carte_grise');
+                      updateVehicle(vehicle.id, { docsInPossession: nextDocs });
+                    }}
+                  />
+                  Carte grise (originale ou copie)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={vehicle.docsInPossession?.includes('assurance') || false} 
+                    onChange={e => {
+                      const docs = vehicle.docsInPossession || [];
+                      const nextDocs = e.target.checked ? [...docs, 'assurance'] : docs.filter(x => x !== 'assurance');
+                      updateVehicle(vehicle.id, { docsInPossession: nextDocs });
+                    }}
+                  />
+                  Carte verte / Assurance
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={vehicle.docsInPossession?.includes('autre') || false} 
+                    onChange={e => {
+                      const docs = vehicle.docsInPossession || [];
+                      const nextDocs = e.target.checked ? [...docs, 'autre'] : docs.filter(x => x !== 'autre');
+                      updateVehicle(vehicle.id, { docsInPossession: nextDocs });
+                    }}
+                  />
+                  Autres documents
+                </label>
+              </div>
+            </div>
           </div>
         )}
+      </SafeModal>
+
+      {/* Modal Changer Statut */}
+      <SafeModal 
+        isOpen={showChangerStatut} 
+        onClose={() => setShowChangerStatut(false)} 
+        title="Localisation & Statut du véhicule" 
+        actions={
+          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowChangerStatut(false)}>Annuler</button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleChangerStatutPhysique}>Mettre à jour</button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="input-group">
+            <label className="input-label">Nouveau statut / atelier</label>
+            <select className="input" value={nouveauStatut} onChange={e => setNouveauStatut(e.target.value as PhysicalStatus)}>
+              {Object.entries(PHYSICAL_STATUS_CONFIG).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Prestataire / Lieu</label>
+            <input className="input" placeholder="ex: Carglass Paris, Speedy..." value={statutPrestataire} onChange={e => setStatutPrestataire(e.target.value)} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Commentaire</label>
+            <textarea className="input" style={{ height: 70 }} placeholder="Notes de transfert, devis..." value={statutCommentaire} onChange={e => setStatutCommentaire(e.target.value)} />
+          </div>
+        </div>
+      </SafeModal>
+
+      {/* Modal Ajouter Travail */}
+      <SafeModal 
+        isOpen={showAddTravail} 
+        onClose={() => setShowAddTravail(false)} 
+        title="Planifier une intervention" 
+        actions={
+          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddTravail(false)}>Annuler</button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAddTravail}>Planifier</button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="input-group">
+            <label className="input-label">Type d'intervention</label>
+            <select className="input" value={newTravailType} onChange={e => setNewTravailType(e.target.value)}>
+              <option value="Carrosserie">Carrosserie</option>
+              <option value="Débosselage">Débosselage</option>
+              <option value="Vitrage">Vitrage</option>
+              <option value="Pneus">Pneus</option>
+              <option value="Mécanique">Mécanique</option>
+              <option value="Entretien">Entretien</option>
+              <option value="Peinture">Peinture</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div className="input-group">
+            <label className="input-label">Montant réel (€)</label>
+            <input className="input" type="number" placeholder="0.00" value={newTravailMontant} onChange={e => setNewTravailMontant(e.target.value)} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">Commentaire / Devis</label>
+            <textarea className="input" style={{ height: 70 }} placeholder="Détails de l'intervention..." value={newTravailCommentaire} onChange={e => setNewTravailCommentaire(e.target.value)} />
+          </div>
+        </div>
       </SafeModal>
     </div>
   );

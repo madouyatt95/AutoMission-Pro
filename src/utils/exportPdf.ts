@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { Mission, Settings } from '../types';
+import { useVehicleStore } from '../store';
 
 export const generateRapportExpertise = (mission: Mission, settings: Settings) => {
   const doc = new jsPDF('p', 'mm', 'a4');
@@ -27,7 +28,7 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
   doc.setTextColor('#000000');
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('INFORMATIONS VÉHICULE', 15, 55);
+  doc.text('INFORMATIONS VÉHICULE & LOGISTIQUE', 15, 55);
   doc.setDrawColor(accentColor);
   doc.setLineWidth(0.5);
   doc.line(15, 57, 195, 57);
@@ -39,13 +40,28 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
   doc.text(`Couleur : ${mission.couleur || 'Non renseigné'}`, 15, 72);
   doc.text(`État général : ${mission.etatGeneral ? mission.etatGeneral.toUpperCase() : 'Non renseigné'}`, 105, 72);
 
+  // Clés et Documents
+  const clefsLabel = (mission as any).keysPossessed === 0 ? '0 clef (ALERTE)' : (mission as any).keysPossessed === 1 ? '1 clef' : (mission as any).keysPossessed === 2 ? '2 clefs' : `${(mission as any).keysPossessed || 1} clefs`;
+  const docsList = (mission as any).docsInPossession || [];
+  const docsLabels = [];
+  if (docsList.includes('carte_grise')) docsLabels.push('Carte Grise');
+  if (docsList.includes('assurance')) docsLabels.push('Carte Verte / Assur.');
+  if (docsList.includes('autre')) docsLabels.push('Autre doc');
+  const docsStr = docsLabels.length > 0 ? docsLabels.join(', ') : 'Aucun';
+
+  doc.text(`Clés en possession : ${clefsLabel}`, 15, 79);
+  doc.text(`Documents reçus : ${docsStr}`, 105, 79);
+
+  const locActuelle = (mission as any).statutPhysique === 'en_possession' ? 'En ma possession' : (mission as any).statutPhysique || 'En ma possession';
+  doc.text(`Localisation actuelle : ${locActuelle.toUpperCase()}`, 15, 86);
+
   // Dégâts constatés
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('DÉGÂTS CONSTATÉS', 15, 85);
-  doc.line(15, 87, 195, 87);
+  doc.text('DÉGÂTS CONSTATÉS', 15, 96);
+  doc.line(15, 98, 195, 98);
 
-  let yOffset = 95;
+  let yOffset = 106;
   if (mission.degats.length === 0) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'italic');
@@ -84,6 +100,73 @@ export const generateRapportExpertise = (mission: Mission, settings: Settings) =
     const splitNotes = doc.splitTextToSize(mission.notesTexte, 180);
     doc.text(splitNotes, 15, yOffset + 10);
     yOffset += 10 + (splitNotes.length * 5);
+  }
+
+  // RÉCUPÉRER LES DONNÉES DU VÉHICULE POUR LA TIMELINE ET LES FINANCES
+  const vData = useVehicleStore.getState().vehicles.find((v: any) => v.plaque === mission.plaque);
+  if (vData) {
+    // 1. Synthèse Financière du véhicule
+    yOffset += 8;
+    if (yOffset > 240) { doc.addPage(); yOffset = 20; }
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SYNTHÈSE FINANCIÈRE DE LA MISSION', 15, yOffset);
+    doc.line(15, yOffset + 2, 195, yOffset + 2);
+    yOffset += 8;
+    
+    const caFac = mission.prixTTC || 0;
+    const advancesCost = (mission.avancesFrais || []).reduce((s: number, f: any) => s + (f.montant || 0), 0);
+    const worksCost = (vData.travauxReels || []).reduce((s: number, t: any) => s + (t.montant || 0), 0);
+    const totalCost = advancesCost + worksCost;
+    const netMarge = caFac - totalCost;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Chiffre d'Affaires Facturé : ${caFac.toFixed(2)} EUR`, 15, yOffset);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Avances de frais (Route) : ${advancesCost.toFixed(2)} EUR`, 15, yOffset + 6);
+    doc.text(`Travaux d'atelier (Réels) : ${worksCost.toFixed(2)} EUR`, 15, yOffset + 12);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Dépenses engagées : ${totalCost.toFixed(2)} EUR`, 110, yOffset);
+    doc.text(`Marge Estimée : ${netMarge.toFixed(2)} EUR`, 110, yOffset + 6);
+    
+    yOffset += 22;
+    
+    // 2. Timeline d'ateliers
+    if (vData.historiqueStatuts && vData.historiqueStatuts.length > 0) {
+      if (yOffset > 220) { doc.addPage(); yOffset = 20; }
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TIMELINE DE PRÉSENCE & ATELIERS', 15, yOffset);
+      doc.line(15, yOffset + 2, 195, yOffset + 2);
+      yOffset += 10;
+      
+      doc.setFontSize(9);
+      vData.historiqueStatuts.forEach((entry: any) => {
+        if (yOffset > 270) { doc.addPage(); yOffset = 20; }
+        
+        const labelStatus = entry.statut === 'en_possession' ? 'En possession' : entry.statut.toUpperCase();
+        const dateDebut = new Date(entry.dateDebut).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const dateFin = entry.dateFin ? new Date(entry.dateFin).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'En cours';
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`[${labelStatus}]`, 15, yOffset);
+        doc.setFont('helvetica', 'normal');
+        
+        let metaStr = `Du ${dateDebut} au ${dateFin}`;
+        if (entry.prestataire) metaStr += ` | Lieu : ${entry.prestataire}`;
+        if (entry.commentaire) metaStr += ` | Note : ${entry.commentaire}`;
+        
+        const splitMeta = doc.splitTextToSize(metaStr, 140);
+        doc.text(splitMeta, 45, yOffset);
+        
+        yOffset += 5 + (splitMeta.length * 4);
+      });
+      yOffset += 4;
+    }
   }
 
   // Signature

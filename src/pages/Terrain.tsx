@@ -43,6 +43,13 @@ export default function Terrain() {
   const [vType, setVType] = useState('');
   const [vDimPneus, setVDimPneus] = useState('');
 
+  // Nouveaux champs logistiques et statuts physiques
+  const [keysPossessed, setKeysPossessed] = useState<number>(1);
+  const [docsInPossession, setDocsInPossession] = useState<string[]>(['carte_grise', 'assurance']);
+  const [statutPhysique, setStatutPhysique] = useState<any>('en_possession');
+  const [statutPrestataire, setStatutPrestataire] = useState('');
+  const [statutCommentaire, setStatutCommentaire] = useState('');
+
   // Client selection
   const [selectedClients, setSelectedClients] = useState<{ clientId: string; clientName: string; montantTTC: number; statut: string }[]>([]);
   const [showAddClient, setShowAddClient] = useState(false);
@@ -179,7 +186,20 @@ export default function Terrain() {
         vin: vVin || undefined,
         typeVehicule: vType as any || undefined,
         dimensionsPneus: vDimPneus || undefined,
-      });
+        keysPossessed,
+        docsInPossession,
+        statutPhysique,
+        _prestataire: statutPrestataire || undefined,
+        _commentaire: statutCommentaire || undefined,
+      } as any);
+    } else {
+      useVehicleStore.getState().updateVehicle(existingVehicle.id, {
+        keysPossessed,
+        docsInPossession,
+        statutPhysique,
+        _prestataire: statutPrestataire || undefined,
+        _commentaire: statutCommentaire || undefined,
+      } as any);
     }
 
     const mission = addMission({
@@ -201,7 +221,12 @@ export default function Terrain() {
       kilometrage: vKm ? parseInt(vKm) : undefined,
       clients: selectedClients.map(c => ({ ...c, facturationDifferee: false, statut: c.statut as 'a_facturer' | 'facture' | 'paye' })),
       avancesFrais: [],
-    });
+      keysPossessed,
+      docsInPossession,
+      statutPhysique,
+      _prestataire: statutPrestataire || undefined,
+      _commentaire: statutCommentaire || undefined,
+    } as any);
 
     setTimeout(() => {
       setSaving(false);
@@ -300,6 +325,106 @@ export default function Terrain() {
           </div>
         </div>
       )}
+
+      {/* Section Logistique Prise en charge (Clés, Documents, Statut initial) */}
+      <div className="card animate-fade-in" style={{ padding: 18, marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          🔑 Logistique & Prise en Charge
+        </h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Clés */}
+          <div className="input-group">
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              Nombre de clés en possession :
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              {[0, 1, 2, 3].map(k => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setKeysPossessed(k)}
+                  className={`chip ${keysPossessed === k ? 'active' : ''}`}
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    justifyContent: 'center',
+                    border: keysPossessed === k ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                >
+                  {k === 0 ? '❌ 0 clé' : k === 1 ? '🔑 x1' : k === 2 ? '🔑🔑 x2' : '🔑🔑🔑 x3+'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="input-group">
+            <label className="input-label">Documents en ma possession :</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {[
+                { key: 'carte_grise', label: 'Carte grise (originale/copie)' },
+                { key: 'assurance', label: 'Carte verte / Assurance' },
+                { key: 'autre', label: 'Autres documents' }
+              ].map(doc => {
+                const active = docsInPossession.includes(doc.key);
+                return (
+                  <button
+                    key={doc.key}
+                    type="button"
+                    onClick={() => {
+                      setDocsInPossession(prev => 
+                        prev.includes(doc.key) ? prev.filter(x => x !== doc.key) : [...prev, doc.key]
+                      );
+                    }}
+                    className={`chip ${active ? 'active' : ''}`}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: active ? 750 : 500,
+                      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    }}
+                  >
+                    {doc.label} {active ? '✓' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Statut Physique initial du véhicule */}
+          <div className="input-group">
+            <label className="input-label">Localisation / Statut initial du véhicule :</label>
+            <select className="input" value={statutPhysique} onChange={e => setStatutPhysique(e.target.value)}>
+              <option value="en_possession">En ma possession</option>
+              <option value="carrosserie">Carrosserie</option>
+              <option value="debosselage">Débosselage</option>
+              <option value="speedy">Speedy</option>
+              <option value="carglass">Carglass</option>
+              <option value="garage">Garage</option>
+              <option value="controle_technique">Contrôle technique</option>
+              <option value="restitue">Restitué</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+
+          {/* Prestataire et Commentaire logistique de départ */}
+          {statutPhysique !== 'en_possession' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 10, background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div className="input-group">
+                <label className="input-label">Nom prestataire / Lieu</label>
+                <input className="input" placeholder="ex: Carglass Lyon" value={statutPrestataire} onChange={e => setStatutPrestataire(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Commentaire de transfert</label>
+                <input className="input" placeholder="ex: Changement pare-brise" value={statutCommentaire} onChange={e => setStatutCommentaire(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Type selection - multi */}
       <div className="section" style={{ marginBottom: 16 }}>

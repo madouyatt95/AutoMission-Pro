@@ -24,6 +24,62 @@ export default function Dashboard() {
     paye: missions.filter(m => m.statut === 'paye').length,
   };
 
+  // Indicateurs logistiques avancés (Ateliers & Présence)
+  const physicalCounts = vehicles.reduce((acc, v) => {
+    const status = v.statutPhysique || 'en_possession';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const chezPrestatairesCount = Object.entries(physicalCounts)
+    .filter(([k]) => k !== 'en_possession' && k !== 'restitue')
+    .reduce((s, [_, val]) => s + val, 0);
+  const enPossessionCount = physicalCounts['en_possession'] || 0;
+  const restitueCount = physicalCounts['restitue'] || 0;
+
+  // Alertes de sécurité logistique (Clés et documents)
+  const alertesSecurite: { id: string; plaque: string; vName: string; type: 'no_key' | 'missing_docs'; detail: string }[] = [];
+  vehicles.forEach(v => {
+    if (v.keysPossessed === 0) {
+      alertesSecurite.push({
+        id: `key-${v.id}`,
+        plaque: v.plaque,
+        vName: `${v.marque || ''} ${v.modele || ''}`.trim() || 'Véhicule',
+        type: 'no_key',
+        detail: '⚠️ ZERO clé en possession ! Risque de blocage.'
+      });
+    }
+    const docs = v.docsInPossession || [];
+    const cgManquante = !docs.includes('carte_grise');
+    const assuranceManquante = !docs.includes('assurance');
+    if (cgManquante || assuranceManquante) {
+      const manquants = [];
+      if (cgManquante) manquants.push('Carte Grise');
+      if (assuranceManquante) manquants.push('Assurance');
+      alertesSecurite.push({
+        id: `docs-${v.id}`,
+        plaque: v.plaque,
+        vName: `${v.marque || ''} ${v.modele || ''}`.trim() || 'Véhicule',
+        type: 'missing_docs',
+        detail: `📄 Doc(s) manquant(s) : ${manquants.join(' et ')}`
+      });
+    }
+  });
+
+  // Indicateurs de travaux et coûts engagés
+  let totalTravauxAFaire = 0;
+  let totalTravauxEnCours = 0;
+  let coutTotalTravauxEngages = 0;
+  vehicles.forEach(v => {
+    (v.travauxReels || []).forEach((t: any) => {
+      if (t.statut === 'a_faire') totalTravauxAFaire++;
+      if (t.statut === 'en_cours') totalTravauxEnCours++;
+      if (t.statut === 'fait' || t.statut === 'en_cours') {
+        coutTotalTravauxEngages += t.montant || 0;
+      }
+    });
+  });
+
   const today = now.toISOString().split('T')[0];
   const rappelsToday = rappels.filter(r => r.date === today && !r.completed);
   const rappelsOverdue = rappels.filter(r => r.date < today && !r.completed);
@@ -138,6 +194,91 @@ export default function Dashboard() {
         <div className="card" style={{ padding: 14, textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 900, color: unpaidTotal > 0 ? 'var(--red)' : 'var(--green)' }}>{unpaidTotal.toLocaleString('fr-FR')}€</div>
           <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700 }}>À ENCAISSER</div>
+        </div>
+      </div>
+
+      {/* ALERTE DE SECURITE LOGISTIQUE (CLES & DOCUMENTS) */}
+      {alertesSecurite.length > 0 && (
+        <div className="section animate-fade-in" style={{ marginTop: 10, marginBottom: 20 }}>
+          <div className="section-header">
+            <h3 className="section-title" style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+              <AlertTriangle size={18} /> Alertes Logistique & Documents ({alertesSecurite.length})
+            </h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {alertesSecurite.slice(0, 4).map(alert => (
+              <div 
+                key={alert.id} 
+                className="card" 
+                onClick={() => navigate(`/vehicule/${encodeURIComponent(alert.plaque)}`)}
+                style={{ 
+                  padding: 12, 
+                  background: alert.type === 'no_key' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)', 
+                  borderColor: alert.type === 'no_key' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                  borderLeft: alert.type === 'no_key' ? '4px solid var(--red)' : '4px solid var(--amber)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text)' }}>
+                    {alert.vName} <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text2)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>{alert.plaque}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: alert.type === 'no_key' ? 'var(--red)' : 'var(--amber)', marginTop: 4, fontWeight: 650 }}>
+                    {alert.detail}
+                  </div>
+                </div>
+                <ChevronRight size={16} color="var(--text2)" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* WIDGETS DE SUIVI LOGISTIQUE & TRAVAUX ATELIERS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        {/* Localisation / Logistique */}
+        <div className="card" style={{ padding: 16 }}>
+          <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            📍 Logistique & Ateliers
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              <span style={{ color: 'var(--text2)' }}>En possession</span>
+              <span style={{ fontWeight: 800, color: 'var(--green)' }}>{enPossessionCount} v.</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              <span style={{ color: 'var(--text2)' }}>Chez prestataires</span>
+              <span style={{ fontWeight: 800, color: 'var(--amber)' }}>{chezPrestatairesCount} v.</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+              <span style={{ color: 'var(--text2)' }}>Restitués</span>
+              <span style={{ fontWeight: 800, color: 'var(--blue)' }}>{restitueCount} v.</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Travaux Réels d'ateliers */}
+        <div className="card" style={{ padding: 16 }}>
+          <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--blue)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            🛠️ Travaux & Entretien
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              <span style={{ color: 'var(--text2)' }}>À faire</span>
+              <span style={{ fontWeight: 800, color: 'var(--red)' }}>{totalTravauxAFaire} act.</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              <span style={{ color: 'var(--text2)' }}>En cours</span>
+              <span style={{ fontWeight: 800, color: 'var(--amber)' }}>{totalTravauxEnCours} act.</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+              <span style={{ color: 'var(--text2)' }}>Coûts</span>
+              <span style={{ fontWeight: 800, color: 'var(--text)' }}>{coutTotalTravauxEngages.toLocaleString('fr-FR')} €</span>
+            </div>
+          </div>
         </div>
       </div>
 

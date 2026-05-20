@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool, Bell } from 'lucide-react';
-import { useMissionStore, useClientStore, useSettingsStore, useRappelStore, useExpenseTypeStore } from '../store';
+import { ArrowLeft, Save, Copy, Trash2, Camera, Mic, MicOff, MapPin, Send, Plus, X, Download, PenTool, Bell, Key, FileText, Check } from 'lucide-react';
+import { useMissionStore, useClientStore, useSettingsStore, useRappelStore, useExpenseTypeStore, useVehicleStore } from '../store';
 import SignaturePad from '../components/SignaturePad';
 import SafeModal from '../components/SafeModal';
 import Vehicle360DamagePicker from '../components/Vehicle360DamagePicker';
 import { generateRapportExpertise, generateFacture } from '../utils/exportPdf';
-import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, EXPENSE_TYPES, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition } from '../types';
+import { MISSION_TYPES, STATUS_CONFIG, VEHICLE_COLORS, CONDITION_LABELS, VEHICLE_PARTS, DAMAGE_TYPES, EXPENSE_TYPES, PHYSICAL_STATUS_CONFIG, MissionStatus, MissionType, VehicleView, DamageType, Degat, VehicleCondition, PhysicalStatus } from '../types';
 
 type Tab = 'info' | 'degats' | 'billing' | 'docs';
 
@@ -185,6 +185,14 @@ function InfoTab({ mission, update, clients }: any) {
   const [showNewExpType, setShowNewExpType] = useState(false);
   const [newExpTypeName, setNewExpTypeName] = useState('');
 
+  // Nouveaux states logistiques temporaires pour les commentaires d'ateliers
+  const [tempPrestataire, setTempPrestataire] = useState('');
+  const [tempCommentaire, setTempCommentaire] = useState('');
+
+  // Récupérer le véhicule associé
+  const { vehicles, updateVehicle } = useVehicleStore();
+  const vAssociated = vehicles.find(v => v.plaque === mission.plaque);
+
   const handleAddExpense = () => {
     if (!expType || !expMontant) return;
     const newExpenses = [...(mission.avancesFrais || []), {
@@ -198,6 +206,15 @@ function InfoTab({ mission, update, clients }: any) {
     setExpMontant('');
     setExpComment('');
     setShowAddExpense(false);
+  };
+
+  const handleUpdateLogistics = (fields: any) => {
+    // Mettre à jour la mission
+    update(fields);
+    // Mettre à jour le véhicule également
+    if (vAssociated) {
+      updateVehicle(vAssociated.id, fields);
+    }
   };
 
   const handleStatusChange = (newStatus: MissionStatus) => {
@@ -271,6 +288,149 @@ function InfoTab({ mission, update, clients }: any) {
           {(Object.entries(STATUS_CONFIG) as [MissionStatus, any][]).map(([key, cfg]) => (
             <button key={key} className={`chip ${mission.statut === key ? 'active' : ''}`} style={mission.statut === key ? { background: cfg.bg, color: cfg.color, borderColor: cfg.color } : {}} onClick={() => handleStatusChange(key)}>{cfg.label}</button>
           ))}
+        </div>
+      </div>
+
+      {/* SECTION LOGISTIQUE PRIS EN CHARGE */}
+      <div className="card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid var(--accent)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: 'var(--accent)', marginBottom: 12 }}>
+          <Key size={16} /> Logistique & Prise en Charge
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Clés */}
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Nombre de clés en possession</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              {[0, 1, 2, 3].map(k => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => handleUpdateLogistics({ keysPossessed: k })}
+                  className={`chip ${(mission.keysPossessed ?? 1) === k ? 'active' : ''}`}
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    justifyContent: 'center',
+                    border: (mission.keysPossessed ?? 1) === k ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                >
+                  {k === 0 ? '❌ 0' : k === 1 ? '🔑 x1' : k === 2 ? '🔑🔑 x2' : '🔑🔑🔑 x3+'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Documents reçus</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {[
+                { key: 'carte_grise', label: 'Carte grise' },
+                { key: 'assurance', label: 'Carte verte / Assur.' },
+                { key: 'autre', label: 'Autres docs' }
+              ].map(doc => {
+                const active = mission.docsInPossession?.includes(doc.key) || false;
+                return (
+                  <button
+                    key={doc.key}
+                    type="button"
+                    onClick={() => {
+                      const current = mission.docsInPossession || [];
+                      const next = current.includes(doc.key)
+                        ? current.filter((x: string) => x !== doc.key)
+                        : [...current, doc.key];
+                      handleUpdateLogistics({ docsInPossession: next });
+                    }}
+                    className={`chip ${active ? 'active' : ''}`}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: active ? 750 : 500,
+                      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    }}
+                  >
+                    {doc.label} {active ? '✓' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Localisation / Statut actuel */}
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Localisation physique du véhicule</label>
+            <select 
+              className="input" 
+              value={mission.statutPhysique || 'en_possession'} 
+              onChange={e => {
+                const nextVal = e.target.value;
+                if (nextVal === 'en_possession') {
+                  handleUpdateLogistics({ 
+                    statutPhysique: 'en_possession',
+                    _prestataire: '',
+                    _commentaire: ''
+                  });
+                  setTempPrestataire('');
+                  setTempCommentaire('');
+                } else {
+                  handleUpdateLogistics({ statutPhysique: nextVal });
+                }
+              }}
+            >
+              <option value="en_possession">En ma possession</option>
+              <option value="carrosserie">Carrosserie</option>
+              <option value="debosselage">Débosselage</option>
+              <option value="speedy">Speedy</option>
+              <option value="carglass">Carglass</option>
+              <option value="garage">Garage</option>
+              <option value="controle_technique">Contrôle technique</option>
+              <option value="restitue">Restitué</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+
+          {/* Saisie prestataire et commentaire de changement si non en_possession */}
+          {mission.statutPhysique && mission.statutPhysique !== 'en_possession' && (
+            <div style={{ padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label" style={{ fontSize: 11 }}>Nom prestataire / Lieu actuel</label>
+                <input 
+                  className="input" 
+                  placeholder="ex: Carglass Lyon" 
+                  value={tempPrestataire} 
+                  onChange={e => setTempPrestataire(e.target.value)} 
+                />
+              </div>
+              <div className="input-group" style={{ marginBottom: 0 }}>
+                <label className="input-label" style={{ fontSize: 11 }}>Commentaire / Notes logistiques</label>
+                <input 
+                  className="input" 
+                  placeholder="ex: Remplacement pare-brise" 
+                  value={tempCommentaire} 
+                  onChange={e => setTempCommentaire(e.target.value)} 
+                />
+              </div>
+              <button 
+                type="button"
+                className="btn btn-secondary btn-sm" 
+                onClick={() => {
+                  handleUpdateLogistics({
+                    _prestataire: tempPrestataire,
+                    _commentaire: tempCommentaire
+                  });
+                  setTempPrestataire('');
+                  setTempCommentaire('');
+                  alert('Transition logistique historisée ✓');
+                }}
+                style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', fontSize: 11 }}
+              >
+                <Check size={12} /> Valider la transition
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
