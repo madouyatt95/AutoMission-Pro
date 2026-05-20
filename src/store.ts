@@ -1,7 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType, VehicleType } from './types';
+import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  pushMission,
+  deleteMissionFromCloud,
+  pushVehicle,
+  deleteVehicleFromCloud,
+  pushClient,
+  deleteClientFromCloud,
+  pushRappel,
+  deleteRappelFromCloud,
+  pushCustomType,
+  deleteCustomTypeFromCloud
+} from './utils/supabaseSync';
 
 // ==================== MISSION STORE ====================
 interface MissionStore {
@@ -57,7 +69,6 @@ export const useMissionStore = create<MissionStore>()(
           avancesFrais: data.avancesFrais || [],
           createdAt: now,
           updatedAt: now,
-          // Nouveaux champs logistiques
           keysPossessed: data.keysPossessed ?? 1,
           docsInPossession: data.docsInPossession || [],
           statutPhysique: initialStatus,
@@ -65,11 +76,15 @@ export const useMissionStore = create<MissionStore>()(
           travauxReels: data.travauxReels || [],
         };
         set((state) => ({ missions: [mission, ...state.missions] }));
+        
+        // Cloud Sync
+        pushMission(mission);
+        
         return mission;
       },
       updateMission: (id, updates) => {
-        set((state) => ({
-          missions: state.missions.map((m) => {
+        set((state) => {
+          const nextMissions = state.missions.map((m) => {
             if (m.id !== id) return m;
 
             const newStatus = updates.statutPhysique;
@@ -77,11 +92,9 @@ export const useMissionStore = create<MissionStore>()(
 
             if (newStatus && newStatus !== m.statutPhysique) {
               const now = new Date().toISOString();
-              // Clôturer l'ancien statut
               updatedHistory = updatedHistory.map(h => 
                 !h.end ? { ...h, end: now } : h
               );
-              // Ajouter le nouveau
               updatedHistory.push({
                 id: uuidv4(),
                 statut: newStatus,
@@ -101,11 +114,22 @@ export const useMissionStore = create<MissionStore>()(
               historiqueStatuts: updatedHistory,
               updatedAt: new Date().toISOString()
             };
-          }),
-        }));
+          });
+
+          const updated = nextMissions.find(m => m.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushMission(updated);
+          }
+
+          return { missions: nextMissions };
+        });
       },
       deleteMission: (id) => {
         set((state) => ({ missions: state.missions.filter((m) => m.id !== id) }));
+        
+        // Cloud Sync
+        deleteMissionFromCloud(id);
       },
       duplicateMission: (id) => {
         const mission = get().missions.find((m) => m.id === id);
@@ -122,6 +146,10 @@ export const useMissionStore = create<MissionStore>()(
           updatedAt: now,
         };
         set((state) => ({ missions: [dup, ...state.missions] }));
+        
+        // Cloud Sync
+        pushMission(dup);
+        
         return dup;
       },
       getMissionsByPlaque: (plaque) => get().missions.filter((m) => m.plaque === plaque.toUpperCase()),
@@ -158,15 +186,28 @@ export const useClientStore = create<ClientStore>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ clients: [client, ...state.clients] }));
+        
+        // Cloud Sync
+        pushClient(client);
+        
         return client;
       },
       updateClient: (id, updates) => {
-        set((state) => ({
-          clients: state.clients.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-        }));
+        set((state) => {
+          const nextClients = state.clients.map((c) => (c.id === id ? { ...c, ...updates } : c));
+          const updated = nextClients.find(c => c.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushClient(updated);
+          }
+          return { clients: nextClients };
+        });
       },
       deleteClient: (id) => {
         set((state) => ({ clients: state.clients.filter((c) => c.id !== id) }));
+        
+        // Cloud Sync
+        deleteClientFromCloud(id);
       },
     }),
     { name: 'automission-clients' }
@@ -215,7 +256,6 @@ export const useVehicleStore = create<VehicleStore>()(
           carteGrise: data.carteGrise,
           carteVerte: data.carteVerte,
           createdAt: now,
-          // Nouveaux champs logistiques
           keysPossessed: data.keysPossessed ?? 1,
           docsInPossession: data.docsInPossession || [],
           statutPhysique: initialStatus,
@@ -223,11 +263,15 @@ export const useVehicleStore = create<VehicleStore>()(
           travauxReels: data.travauxReels || [],
         };
         set((state) => ({ vehicles: [vehicle, ...state.vehicles] }));
+        
+        // Cloud Sync
+        pushVehicle(vehicle);
+        
         return vehicle;
       },
       updateVehicle: (id, updates) => {
-        set((state) => ({
-          vehicles: state.vehicles.map((v) => {
+        set((state) => {
+          const nextVehicles = state.vehicles.map((v) => {
             if (v.id !== id) return v;
 
             const newStatus = updates.statutPhysique;
@@ -235,11 +279,9 @@ export const useVehicleStore = create<VehicleStore>()(
 
             if (newStatus && newStatus !== v.statutPhysique) {
               const now = new Date().toISOString();
-              // Clôturer l'ancien statut
               updatedHistory = updatedHistory.map(h => 
                 !h.end ? { ...h, end: now } : h
               );
-              // Ajouter le nouveau
               updatedHistory.push({
                 id: uuidv4(),
                 statut: newStatus,
@@ -258,11 +300,22 @@ export const useVehicleStore = create<VehicleStore>()(
               ...cleanedUpdates,
               historiqueStatuts: updatedHistory
             };
-          }),
-        }));
+          });
+
+          const updated = nextVehicles.find(v => v.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushVehicle(updated);
+          }
+
+          return { vehicles: nextVehicles };
+        });
       },
       deleteVehicle: (id) => {
         set((state) => ({ vehicles: state.vehicles.filter((v) => v.id !== id) }));
+        
+        // Cloud Sync
+        deleteVehicleFromCloud(id);
       },
       getByPlaque: (plaque) => get().vehicles.find((v) => v.plaque === plaque.toUpperCase().trim()),
     }),
@@ -285,15 +338,28 @@ export const useCustomTypeStore = create<CustomTypeStore>()(
       addType: (data) => {
         const t: CustomMissionType = { id: uuidv4(), ...data };
         set((state) => ({ customTypes: [...state.customTypes, t] }));
+        
+        // Cloud Sync
+        pushCustomType(t);
+        
         return t;
       },
       updateType: (id, updates) => {
-        set((state) => ({
-          customTypes: state.customTypes.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-        }));
+        set((state) => {
+          const nextTypes = state.customTypes.map((t) => (t.id === id ? { ...t, ...updates } : t));
+          const updated = nextTypes.find(t => t.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushCustomType(updated);
+          }
+          return { customTypes: nextTypes };
+        });
       },
       deleteType: (id) => {
         set((state) => ({ customTypes: state.customTypes.filter((t) => t.id !== id) }));
+        
+        // Cloud Sync
+        deleteCustomTypeFromCloud(id);
       },
     }),
     { name: 'automission-custom-types' }
@@ -359,20 +425,39 @@ export const useRappelStore = create<RappelStore>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ rappels: [rappel, ...state.rappels] }));
+        
+        // Cloud Sync
+        pushRappel(rappel);
+        
         return rappel;
       },
       updateRappel: (id, updates) => {
-        set((state) => ({
-          rappels: state.rappels.map((r) => (r.id === id ? { ...r, ...updates } : r)),
-        }));
+        set((state) => {
+          const nextRappels = state.rappels.map((r) => (r.id === id ? { ...r, ...updates } : r));
+          const updated = nextRappels.find(r => r.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushRappel(updated);
+          }
+          return { rappels: nextRappels };
+        });
       },
       deleteRappel: (id) => {
         set((state) => ({ rappels: state.rappels.filter((r) => r.id !== id) }));
+        
+        // Cloud Sync
+        deleteRappelFromCloud(id);
       },
       toggleComplete: (id) => {
-        set((state) => ({
-          rappels: state.rappels.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r)),
-        }));
+        set((state) => {
+          const nextRappels = state.rappels.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r));
+          const updated = nextRappels.find(r => r.id === id);
+          if (updated) {
+            // Cloud Sync
+            pushRappel(updated);
+          }
+          return { rappels: nextRappels };
+        });
       },
     }),
     { name: 'automission-rappels' }
@@ -387,6 +472,19 @@ interface SettingsStore {
   autoAlertDaysRelance: number;
   updateSettings: (updates: Partial<{ tva: number; companyName: string; autoAlertDaysFacturation: number; autoAlertDaysRelance: number }>) => void;
 }
+
+export const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      tva: 20,
+      companyName: 'AutoMission Services',
+      autoAlertDaysFacturation: 1,
+      autoAlertDaysRelance: 3,
+      updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
+    }),
+    { name: 'automission-settings' }
+  )
+);
 
 // ==================== EXPENSE TYPE STORE ====================
 interface ExpenseTypeStore {
@@ -407,18 +505,5 @@ export const useExpenseTypeStore = create<ExpenseTypeStore>()(
       },
     }),
     { name: 'automission-expense-types' }
-  )
-);
-
-export const useSettingsStore = create<SettingsStore>()(
-  persist(
-    (set) => ({
-      tva: 20,
-      companyName: 'AutoMission Services',
-      autoAlertDaysFacturation: 1,
-      autoAlertDaysRelance: 3,
-      updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
-    }),
-    { name: 'automission-settings' }
   )
 );
