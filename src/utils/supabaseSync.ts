@@ -31,16 +31,72 @@ export const useSyncStore = create<SyncStore>((set) => ({
 // ==================== HYBRID HELPER FUNCTIONS ====================
 
 /**
+ * Performs a one-time secure upload of existing offline data from this device to Supabase.
+ * Uses UUIDs to safely merge all data without collisions.
+ */
+export async function mergeLocalDataToCloud() {
+  if (!isSupabaseConfigured) return;
+  
+  const isMigrated = localStorage.getItem('automission_supabase_migrated') === 'true';
+  if (isMigrated) return;
+
+  const syncStore = useSyncStore.getState();
+  syncStore.setStatus('syncing');
+
+  try {
+    console.log('Starting secure one-time local-to-cloud data merge...');
+    
+    // 1. Upload Clients
+    const localClients = useClientStore.getState().clients || [];
+    for (const client of localClients) {
+      await pushClient(client);
+    }
+
+    // 2. Upload Vehicles
+    const localVehicles = useVehicleStore.getState().vehicles || [];
+    for (const vehicle of localVehicles) {
+      await pushVehicle(vehicle);
+    }
+
+    // 3. Upload Missions
+    const localMissions = useMissionStore.getState().missions || [];
+    for (const mission of localMissions) {
+      await pushMission(mission);
+    }
+
+    // 4. Upload Rappels
+    const localRappels = useRappelStore.getState().rappels || [];
+    for (const rappel of localRappels) {
+      await pushRappel(rappel);
+    }
+
+    // 5. Upload Custom Mission Types
+    const localCustomTypes = useCustomTypeStore.getState().customTypes || [];
+    for (const t of localCustomTypes) {
+      await pushCustomType(t);
+    }
+
+    console.log('One-time local-to-cloud data merge completed successfully!');
+    localStorage.setItem('automission_supabase_migrated', 'true');
+  } catch (error) {
+    console.error('Error during local-to-cloud data merge:', error);
+  }
+}
+
+/**
  * Hydrates all local Zustand stores from Supabase
  */
 export async function pullAllData() {
   if (!isSupabaseConfigured) return;
   
+  // 1. First, merge any existing local offline data on this device to the cloud
+  await mergeLocalDataToCloud();
+  
   const syncStore = useSyncStore.getState();
   syncStore.setStatus('syncing');
 
   try {
-    // 1. Fetch Clients
+    // 2. Fetch Clients
     const { data: clientsData, error: clientsError } = await supabase
       .from('clients')
       .select('*')
@@ -48,7 +104,7 @@ export async function pullAllData() {
       
     if (clientsError) throw clientsError;
 
-    // 2. Fetch Vehicles
+    // 3. Fetch Vehicles
     const { data: vehiclesData, error: vehiclesError } = await supabase
       .from('vehicles')
       .select('*')
@@ -56,7 +112,7 @@ export async function pullAllData() {
 
     if (vehiclesError) throw vehiclesError;
 
-    // 3. Fetch Missions
+    // 4. Fetch Missions
     const { data: missionsData, error: missionsError } = await supabase
       .from('missions')
       .select('*')
@@ -64,7 +120,7 @@ export async function pullAllData() {
 
     if (missionsError) throw missionsError;
 
-    // 4. Fetch Rappels
+    // 5. Fetch Rappels
     const { data: rappelsData, error: rappelsError } = await supabase
       .from('rappels')
       .select('*')
@@ -72,7 +128,7 @@ export async function pullAllData() {
 
     if (rappelsError) throw rappelsError;
 
-    // 5. Fetch Custom Types
+    // 6. Fetch Custom Types
     const { data: customTypesData, error: customTypesError } = await supabase
       .from('custom_mission_types')
       .select('*');
