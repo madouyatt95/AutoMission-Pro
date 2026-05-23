@@ -176,18 +176,29 @@ export default function VehicleHistory() {
                   <Key size={12} color={(vehicle.keysPossessed ?? 1) === 0 ? 'var(--red)' : 'var(--accent)'} />
                   <span>
                     {(vehicle.keysPossessed ?? 1) === 0 ? '0 clé ❌' : Array(vehicle.keysPossessed ?? 1).fill('🔑').join('')}
-                    {(vehicle.keysPossessed ?? 1) >= 3 ? ' +' : ''}
                   </span>
                 </div>
 
+                {/* Carte essence */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(255,255,255,0.03)', border: `1px solid ${
+                  vehicle.carteEssence === 'presente' ? 'var(--green)' : 'var(--red)'
+                }`, fontSize: 12, fontWeight: 700 }}>
+                  <span>{vehicle.carteEssence === 'presente' ? '💳 Carte essence ✓' : '❌ Sans carte essence'}</span>
+                </div>
+
                 {/* Documents */}
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <span style={{ padding: '4px 10px', borderRadius: 8, background: vehicle.docsInPossession?.includes('carte_grise') ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: vehicle.docsInPossession?.includes('carte_grise') ? 'var(--green)' : 'var(--red)', fontSize: 11, fontWeight: 700 }}>
-                    CG {vehicle.docsInPossession?.includes('carte_grise') ? '✓' : '✗'}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <span style={{ padding: '4px 10px', borderRadius: 8, background: vehicle.carteGriseFormat ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: vehicle.carteGriseFormat ? 'var(--green)' : 'var(--red)', fontSize: 11, fontWeight: 700 }}>
+                    CG: {vehicle.carteGriseFormat ? (vehicle.carteGriseFormat === 'original' ? 'Original' : 'Copie') : '✗'}
                   </span>
                   <span style={{ padding: '4px 10px', borderRadius: 8, background: vehicle.docsInPossession?.includes('assurance') ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: vehicle.docsInPossession?.includes('assurance') ? 'var(--green)' : 'var(--red)', fontSize: 11, fontWeight: 700 }}>
-                    Verte {vehicle.docsInPossession?.includes('assurance') ? '✓' : '✗'}
+                    Assur: {vehicle.docsInPossession?.includes('assurance') ? '✓' : '✗'}
                   </span>
+                  {vehicle.autresDocumentsSpecifique && (
+                    <span style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(0,191,255,0.12)', color: 'var(--blue)', fontSize: 11, fontWeight: 700 }}>
+                      Autre: {vehicle.autresDocumentsSpecifique}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -528,25 +539,37 @@ export default function VehicleHistory() {
                 <option value="0">0 clé (Manquante)</option>
                 <option value="1">1 clé</option>
                 <option value="2">2 clés</option>
-                <option value="3">3 clés ou plus</option>
+              </select>
+            </div>
+
+            <div className="input-group"><label className="input-label">Carte essence</label>
+              <select className="input" value={vehicle.carteEssence || 'absente'} onChange={e => updateVehicle(vehicle.id, { carteEssence: e.target.value as any })}>
+                <option value="absente">❌ Absente</option>
+                <option value="presente">💳 Présente</option>
+              </select>
+            </div>
+
+            <div className="input-group"><label className="input-label">Format de la carte grise</label>
+              <select className="input" value={vehicle.carteGriseFormat || 'absente'} onChange={e => {
+                const format = e.target.value;
+                const docs = vehicle.docsInPossession || [];
+                const nextDocs = format === 'absente' 
+                  ? docs.filter(x => x !== 'carte_grise')
+                  : [...docs.filter(x => x !== 'carte_grise'), 'carte_grise'];
+                updateVehicle(vehicle.id, { 
+                  carteGriseFormat: format === 'absente' ? undefined : format as any,
+                  docsInPossession: nextDocs
+                });
+              }}>
+                <option value="absente">❌ Absente / Non reçue</option>
+                <option value="original">📄 Original</option>
+                <option value="photocopie">🖨️ Photocopie</option>
               </select>
             </div>
 
             <div className="input-group">
-              <label className="input-label" style={{ marginBottom: 6 }}>Documents reçus</label>
+              <label className="input-label" style={{ marginBottom: 6 }}>Autres documents</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={vehicle.docsInPossession?.includes('carte_grise') || false} 
-                    onChange={e => {
-                      const docs = vehicle.docsInPossession || [];
-                      const nextDocs = e.target.checked ? [...docs, 'carte_grise'] : docs.filter(x => x !== 'carte_grise');
-                      updateVehicle(vehicle.id, { docsInPossession: nextDocs });
-                    }}
-                  />
-                  Carte grise (originale ou copie)
-                </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
@@ -559,18 +582,40 @@ export default function VehicleHistory() {
                   />
                   Carte verte / Assurance
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={vehicle.docsInPossession?.includes('autre') || false} 
-                    onChange={e => {
-                      const docs = vehicle.docsInPossession || [];
-                      const nextDocs = e.target.checked ? [...docs, 'autre'] : docs.filter(x => x !== 'autre');
-                      updateVehicle(vehicle.id, { docsInPossession: nextDocs });
-                    }}
-                  />
-                  Autres documents
-                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!vehicle.autresDocumentsSpecifique} 
+                      onChange={e => {
+                        const docs = vehicle.docsInPossession || [];
+                        const nextDocs = e.target.checked ? [...docs.filter(x => x !== 'autre'), 'autre'] : docs.filter(x => x !== 'autre');
+                        updateVehicle(vehicle.id, { 
+                          docsInPossession: nextDocs,
+                          autresDocumentsSpecifique: e.target.checked ? 'Autres' : undefined
+                        });
+                      }}
+                    />
+                    Autres documents reçus
+                  </label>
+                  {!!vehicle.autresDocumentsSpecifique && (
+                    <input
+                      className="input"
+                      style={{ padding: '6px 10px', fontSize: 12, marginTop: 4 }}
+                      placeholder="Préciser le type (ex: CT, Carnet...)"
+                      value={vehicle.autresDocumentsSpecifique === 'Autres' ? '' : vehicle.autresDocumentsSpecifique}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const docs = vehicle.docsInPossession || [];
+                        const nextDocs = val ? [...docs.filter(x => x !== 'autre'), 'autre'] : docs.filter(x => x !== 'autre');
+                        updateVehicle(vehicle.id, {
+                          autresDocumentsSpecifique: val || undefined,
+                          docsInPossession: nextDocs
+                        });
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>

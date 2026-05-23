@@ -53,11 +53,14 @@ export interface Vehicle {
   carteVerte?: string; // dataUrl
   createdAt: string;
   // Améliorations logistiques
-  keysPossessed?: 0 | 1 | 2 | 3;
+  keysPossessed?: 0 | 1 | 2;
   docsInPossession?: string[];
   statutPhysique?: PhysicalStatus;
   historiqueStatuts?: StatusHistoryEntry[];
   travauxReels?: TravailReel[];
+  carteEssence?: 'presente' | 'absente';
+  carteGriseFormat?: 'original' | 'photocopie';
+  autresDocumentsSpecifique?: string;
 }
 
 // ==================== CUSTOM MISSION TYPES ====================
@@ -77,6 +80,8 @@ export interface Degat {
   photos: Photo[];
   x?: number;
   y?: number;
+  statutAction?: 'a_faire' | 'aucune' | 'fait';
+  typeReparation?: string;
 }
 
 export interface Photo {
@@ -162,11 +167,16 @@ export interface Mission {
   createdAt: string;
   updatedAt: string;
   // Améliorations logistiques partagées
-  keysPossessed?: 0 | 1 | 2 | 3;
+  keysPossessed?: 0 | 1 | 2;
   docsInPossession?: string[];
   statutPhysique?: PhysicalStatus;
   historiqueStatuts?: StatusHistoryEntry[];
   travauxReels?: TravailReel[];
+  carteEssence?: 'presente' | 'absente';
+  carteGriseFormat?: 'original' | 'photocopie';
+  autresDocumentsSpecifique?: string;
+  pointDepart?: string;
+  pointArrivee?: string;
 }
 
 // ==================== PDF OPTIONS ====================

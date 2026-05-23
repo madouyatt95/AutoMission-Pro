@@ -74,6 +74,11 @@ export const useMissionStore = create<MissionStore>()(
           statutPhysique: initialStatus,
           historiqueStatuts: initialHistory,
           travauxReels: data.travauxReels || [],
+          carteEssence: data.carteEssence || 'absente',
+          carteGriseFormat: data.carteGriseFormat,
+          autresDocumentsSpecifique: data.autresDocumentsSpecifique,
+          pointDepart: data.pointDepart,
+          pointArrivee: data.pointArrivee,
         };
         set((state) => ({ missions: [mission, ...state.missions] }));
         
@@ -261,6 +266,9 @@ export const useVehicleStore = create<VehicleStore>()(
           statutPhysique: initialStatus,
           historiqueStatuts: initialHistory,
           travauxReels: data.travauxReels || [],
+          carteEssence: data.carteEssence || 'absente',
+          carteGriseFormat: data.carteGriseFormat,
+          autresDocumentsSpecifique: data.autresDocumentsSpecifique,
         };
         set((state) => ({ vehicles: [vehicle, ...state.vehicles] }));
         

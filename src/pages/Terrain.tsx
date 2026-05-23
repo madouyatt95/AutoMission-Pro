@@ -49,6 +49,11 @@ export default function Terrain() {
   const [statutPhysique, setStatutPhysique] = useState<any>('en_possession');
   const [statutPrestataire, setStatutPrestataire] = useState('');
   const [statutCommentaire, setStatutCommentaire] = useState('');
+  const [carteEssence, setCarteEssence] = useState<'presente' | 'absente'>('absente');
+  const [carteGriseFormat, setCarteGriseFormat] = useState<'original' | 'photocopie' | undefined>('original');
+  const [autresDocumentsSpecifique, setAutresDocumentsSpecifique] = useState('');
+  const [pointDepart, setPointDepart] = useState('');
+  const [pointArrivee, setPointArrivee] = useState('');
 
   // Client selection
   const [selectedClients, setSelectedClients] = useState<{ clientId: string; clientName: string; montantTTC: number; statut: string }[]>([]);
@@ -191,6 +196,9 @@ export default function Terrain() {
         statutPhysique,
         _prestataire: statutPrestataire || undefined,
         _commentaire: statutCommentaire || undefined,
+        carteEssence,
+        carteGriseFormat,
+        autresDocumentsSpecifique: autresDocumentsSpecifique || undefined,
       } as any);
     } else {
       useVehicleStore.getState().updateVehicle(existingVehicle.id, {
@@ -199,6 +207,9 @@ export default function Terrain() {
         statutPhysique,
         _prestataire: statutPrestataire || undefined,
         _commentaire: statutCommentaire || undefined,
+        carteEssence,
+        carteGriseFormat,
+        autresDocumentsSpecifique: autresDocumentsSpecifique || undefined,
       } as any);
     }
 
@@ -226,6 +237,11 @@ export default function Terrain() {
       statutPhysique,
       _prestataire: statutPrestataire || undefined,
       _commentaire: statutCommentaire || undefined,
+      carteEssence,
+      carteGriseFormat,
+      autresDocumentsSpecifique: autresDocumentsSpecifique || undefined,
+      pointDepart: pointDepart || undefined,
+      pointArrivee: pointArrivee || undefined,
     } as any);
 
     setTimeout(() => {
@@ -338,8 +354,8 @@ export default function Terrain() {
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               Nombre de clés en possession :
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-              {[0, 1, 2, 3].map(k => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {[0, 1, 2].map(k => (
                 <button
                   key={k}
                   type="button"
@@ -354,7 +370,35 @@ export default function Terrain() {
                     border: keysPossessed === k ? '1px solid var(--accent)' : '1px solid var(--border)',
                   }}
                 >
-                  {k === 0 ? '❌ 0 clé' : k === 1 ? '🔑 x1' : k === 2 ? '🔑🔑 x2' : '🔑🔑🔑 x3+'}
+                  {k === 0 ? '❌ 0 clé' : k === 1 ? '🔑 x1' : '🔑🔑 x2'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Carte Essence */}
+          <div className="input-group">
+            <label className="input-label">Carte essence :</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[
+                { key: 'presente', label: '💳 Présente' },
+                { key: 'absente', label: '❌ Absente' }
+              ].map(c => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setCarteEssence(c.key as any)}
+                  className={`chip ${carteEssence === c.key ? 'active' : ''}`}
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    justifyContent: 'center',
+                    border: carteEssence === c.key ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                >
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -362,36 +406,90 @@ export default function Terrain() {
 
           {/* Documents */}
           <div className="input-group">
-            <label className="input-label">Documents en ma possession :</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <label className="input-label">Carte grise reçue :</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
               {[
-                { key: 'carte_grise', label: 'Carte grise (originale/copie)' },
-                { key: 'assurance', label: 'Carte verte / Assurance' },
-                { key: 'autre', label: 'Autres documents' }
-              ].map(doc => {
-                const active = docsInPossession.includes(doc.key);
+                { key: 'original', label: '📄 Original' },
+                { key: 'photocopie', label: '🖨️ Photocopie' },
+                { key: 'absente', label: '❌ Absente' }
+              ].map(opt => {
+                const active = carteGriseFormat === opt.key || (!carteGriseFormat && opt.key === 'absente');
                 return (
                   <button
-                    key={doc.key}
+                    key={opt.key}
                     type="button"
                     onClick={() => {
+                      setCarteGriseFormat(opt.key === 'absente' ? undefined : opt.key as any);
                       setDocsInPossession(prev => 
-                        prev.includes(doc.key) ? prev.filter(x => x !== doc.key) : [...prev, doc.key]
+                        opt.key === 'absente' 
+                          ? prev.filter(x => x !== 'carte_grise')
+                          : [...prev.filter(x => x !== 'carte_grise'), 'carte_grise']
                       );
                     }}
                     className={`chip ${active ? 'active' : ''}`}
                     style={{
-                      padding: '6px 12px',
+                      padding: '8px 4px',
                       fontSize: 12,
-                      fontWeight: active ? 750 : 500,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      justifyContent: 'center',
                       border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
                     }}
                   >
-                    {doc.label} {active ? '✓' : ''}
+                    {opt.label}
                   </button>
                 );
               })}
             </div>
+
+            <label className="input-label" style={{ marginTop: 8 }}>Assurance reçue :</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+              {[
+                { key: 'assurance_presente', label: '🟢 Oui (Carte verte)' },
+                { key: 'assurance_absente', label: '❌ Non' }
+              ].map(opt => {
+                const active = docsInPossession.includes('assurance') ? opt.key === 'assurance_presente' : opt.key === 'assurance_absente';
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setDocsInPossession(prev => 
+                        opt.key === 'assurance_presente'
+                          ? [...prev.filter(x => x !== 'assurance'), 'assurance']
+                          : prev.filter(x => x !== 'assurance')
+                      );
+                    }}
+                    className={`chip ${active ? 'active' : ''}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      justifyContent: 'center',
+                      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="input-label" style={{ marginTop: 8 }}>Section « Autres documents » :</label>
+            <input 
+              className="input" 
+              placeholder="Préciser le type d'autres documents reçus..." 
+              value={autresDocumentsSpecifique} 
+              onChange={e => {
+                setAutresDocumentsSpecifique(e.target.value);
+                setDocsInPossession(prev => 
+                  e.target.value 
+                    ? [...prev.filter(x => x !== 'autre'), 'autre']
+                    : prev.filter(x => x !== 'autre')
+                );
+              }} 
+            />
           </div>
 
           {/* Statut Physique initial du véhicule */}
@@ -409,20 +507,33 @@ export default function Terrain() {
               <option value="autre">Autre</option>
             </select>
           </div>
+        </div>
+      </div>
 
-          {/* Prestataire et Commentaire logistique de départ */}
-          {statutPhysique !== 'en_possession' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 10, background: 'rgba(255,255,255,0.02)', borderRadius: 8, border: '1px solid var(--border)' }}>
-              <div className="input-group">
-                <label className="input-label">Nom prestataire / Lieu</label>
-                <input className="input" placeholder="ex: Carglass Lyon" value={statutPrestataire} onChange={e => setStatutPrestataire(e.target.value)} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Commentaire de transfert</label>
-                <input className="input" placeholder="ex: Changement pare-brise" value={statutCommentaire} onChange={e => setStatutCommentaire(e.target.value)} />
-              </div>
-            </div>
-          )}
+      {/* SECTION ITINÉRAIRE (Missions / Transferts) */}
+      <div className="card animate-fade-in" style={{ padding: 18, marginBottom: 16, borderLeft: '4px solid var(--blue)' }}>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--blue)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>📍</span> Itinéraire / Transfert
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Point de départ</label>
+            <input 
+              className="input" 
+              placeholder="Ex: Paris..." 
+              value={pointDepart} 
+              onChange={e => setPointDepart(e.target.value)} 
+            />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Point d'arrivée</label>
+            <input 
+              className="input" 
+              placeholder="Ex: Lyon..." 
+              value={pointArrivee} 
+              onChange={e => setPointArrivee(e.target.value)} 
+            />
+          </div>
         </div>
       </div>
 

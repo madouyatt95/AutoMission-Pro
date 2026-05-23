@@ -301,12 +301,12 @@ function InfoTab({ mission, update, clients }: any) {
           {/* Clés */}
           <div className="input-group" style={{ marginBottom: 0 }}>
             <label className="input-label">Nombre de clés en possession</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-              {[0, 1, 2, 3].map(k => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {[0, 1, 2].map(k => (
                 <button
                   key={k}
                   type="button"
-                  onClick={() => handleUpdateLogistics({ keysPossessed: k })}
+                  onClick={() => handleUpdateLogistics({ keysPossessed: k as any })}
                   className={`chip ${(mission.keysPossessed ?? 1) === k ? 'active' : ''}`}
                   style={{
                     padding: '8px 4px',
@@ -317,7 +317,35 @@ function InfoTab({ mission, update, clients }: any) {
                     border: (mission.keysPossessed ?? 1) === k ? '1px solid var(--accent)' : '1px solid var(--border)',
                   }}
                 >
-                  {k === 0 ? '❌ 0' : k === 1 ? '🔑 x1' : k === 2 ? '🔑🔑 x2' : '🔑🔑🔑 x3+'}
+                  {k === 0 ? '❌ 0' : k === 1 ? '🔑 x1' : '🔑🔑 x2'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Carte Essence */}
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Carte essence</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[
+                { key: 'presente', label: '💳 Présente' },
+                { key: 'absente', label: '❌ Absente' }
+              ].map(c => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => handleUpdateLogistics({ carteEssence: c.key as any })}
+                  className={`chip ${mission.carteEssence === c.key ? 'active' : ''}`}
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    justifyContent: 'center',
+                    border: mission.carteEssence === c.key ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  }}
+                >
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -325,38 +353,88 @@ function InfoTab({ mission, update, clients }: any) {
 
           {/* Documents */}
           <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label">Documents reçus</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <label className="input-label">Carte grise reçue</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
               {[
-                { key: 'carte_grise', label: 'Carte grise' },
-                { key: 'assurance', label: 'Carte verte / Assur.' },
-                { key: 'autre', label: 'Autres docs' }
-              ].map(doc => {
-                const active = mission.docsInPossession?.includes(doc.key) || false;
+                { key: 'original', label: '📄 Original' },
+                { key: 'photocopie', label: '🖨️ Photocopie' },
+                { key: 'absente', label: '❌ Absente' }
+              ].map(opt => {
+                const active = mission.carteGriseFormat === opt.key || (!mission.carteGriseFormat && opt.key === 'absente');
                 return (
                   <button
-                    key={doc.key}
+                    key={opt.key}
                     type="button"
                     onClick={() => {
-                      const current = mission.docsInPossession || [];
-                      const next = current.includes(doc.key)
-                        ? current.filter((x: string) => x !== doc.key)
-                        : [...current, doc.key];
-                      handleUpdateLogistics({ docsInPossession: next });
+                      handleUpdateLogistics({ 
+                        carteGriseFormat: opt.key === 'absente' ? undefined : opt.key as any,
+                        docsInPossession: opt.key === 'absente' 
+                          ? (mission.docsInPossession || []).filter((x: string) => x !== 'carte_grise')
+                          : [...(mission.docsInPossession || []).filter((x: string) => x !== 'carte_grise'), 'carte_grise']
+                      });
                     }}
                     className={`chip ${active ? 'active' : ''}`}
                     style={{
-                      padding: '6px 12px',
-                      fontSize: 12,
-                      fontWeight: active ? 750 : 500,
+                      padding: '8px 4px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      justifyContent: 'center',
                       border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
                     }}
                   >
-                    {doc.label} {active ? '✓' : ''}
+                    {opt.label}
                   </button>
                 );
               })}
             </div>
+
+            <label className="input-label" style={{ marginTop: 8 }}>Assurance reçue</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+              {[
+                { key: 'assurance_presente', label: '🟢 Oui (Carte verte)' },
+                { key: 'assurance_absente', label: '❌ Non' }
+              ].map(opt => {
+                const active = mission.docsInPossession?.includes('assurance') ? opt.key === 'assurance_presente' : opt.key === 'assurance_absente';
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      const current = mission.docsInPossession || [];
+                      const next = opt.key === 'assurance_presente'
+                        ? [...current.filter((x: string) => x !== 'assurance'), 'assurance']
+                        : current.filter((x: string) => x !== 'assurance');
+                      handleUpdateLogistics({ docsInPossession: next });
+                    }}
+                    className={`chip ${active ? 'active' : ''}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textAlign: 'center',
+                      justifyContent: 'center',
+                      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="input-label" style={{ marginTop: 8 }}>Section « Autres documents »</label>
+            <input 
+              className="input" 
+              placeholder="Préciser le type d'autres documents reçus..." 
+              value={mission.autresDocumentsSpecifique || ''} 
+              onChange={e => handleUpdateLogistics({ 
+                autresDocumentsSpecifique: e.target.value || undefined,
+                docsInPossession: e.target.value 
+                  ? [...(mission.docsInPossession || []).filter((x: string) => x !== 'autre'), 'autre']
+                  : (mission.docsInPossession || []).filter((x: string) => x !== 'autre')
+              })} 
+            />
           </div>
 
           {/* Localisation / Statut actuel */}
@@ -431,6 +509,33 @@ function InfoTab({ mission, update, clients }: any) {
               </button>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* SECTION ITINÉRAIRE (Missions / Transferts) */}
+      <div className="card" style={{ padding: 16, marginBottom: 16, borderLeft: '4px solid var(--blue)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 14, color: 'var(--blue)', marginBottom: 12 }}>
+          <span>📍</span> Itinéraire / Transfert
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Point de départ</label>
+            <input 
+              className="input" 
+              placeholder="Ex: Paris..." 
+              value={mission.pointDepart || ''} 
+              onChange={e => update({ pointDepart: e.target.value })} 
+            />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label">Point d'arrivée</label>
+            <input 
+              className="input" 
+              placeholder="Ex: Lyon..." 
+              value={mission.pointArrivee || ''} 
+              onChange={e => update({ pointArrivee: e.target.value })} 
+            />
+          </div>
         </div>
       </div>
 
@@ -626,9 +731,84 @@ function DegatsTab({ mission, update }: any) {
     <div>
       <Vehicle360DamagePicker
         degats={mission.degats}
-        onAddDegat={(d) => update({ degats: [...mission.degats, { ...d, id: Date.now().toString() }] })}
+        onAddDegat={(d) => update({ degats: [...mission.degats, { ...d, id: Date.now().toString(), statutAction: 'a_faire', typeReparation: 'Carrosserie / Tôlerie' }] })}
         onRemoveDegat={removeDamage}
       />
+
+      {/* Réparations à effectuer */}
+      <div style={{ marginTop: 24, marginBottom: 24 }}>
+        <div className="input-label" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>🛠️</span> Réparations à effectuer ({mission.degats.length})
+        </div>
+        
+        {mission.degats.length === 0 ? (
+          <div className="card" style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 13, borderStyle: 'dashed' }}>
+            Aucun dégât constaté. La liste des réparations se génère automatiquement à partir des dégâts.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {mission.degats.map((d: Degat, index: number) => (
+              <div key={d.id} className="card animate-fade-in" style={{ padding: 16, borderLeft: `4px solid ${d.statutAction === 'fait' ? 'var(--green)' : d.statutAction === 'aucune' ? 'var(--text3)' : 'var(--accent)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>{d.piece}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                      Dégât : <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{d.type}</span> {d.commentaire && `— ${d.commentaire}`}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: 'var(--text3)', textTransform: 'uppercase', fontWeight: 800 }}>
+                    {d.vue}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label className="input-label" style={{ fontSize: 11 }}>Statut de l'action</label>
+                    <select
+                      className="input"
+                      value={d.statutAction || 'a_faire'}
+                      onChange={e => {
+                        const updatedDegats = [...mission.degats];
+                        updatedDegats[index] = { ...d, statutAction: e.target.value as any };
+                        update({ degats: updatedDegats });
+                      }}
+                      style={{ padding: '8px 12px', fontSize: 13 }}
+                    >
+                      <option value="a_faire">🔴 À faire</option>
+                      <option value="aucune">⚪ Aucune action</option>
+                      <option value="fait">🟢 Fait</option>
+                    </select>
+                  </div>
+
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label className="input-label" style={{ fontSize: 11 }}>Type de réparation</label>
+                    <select
+                      className="input"
+                      value={d.typeReparation || 'Carrosserie / Tôlerie'}
+                      onChange={e => {
+                        const updatedDegats = [...mission.degats];
+                        updatedDegats[index] = { ...d, typeReparation: e.target.value };
+                        update({ degats: updatedDegats });
+                      }}
+                      style={{ padding: '8px 12px', fontSize: 13 }}
+                    >
+                      <option value="Carrosserie / Tôlerie">Carrosserie / Tôlerie</option>
+                      <option value="Peinture">Peinture</option>
+                      <option value="Débosselage sans peinture (DSP)">Débosselage sans peinture (DSP)</option>
+                      <option value="Remplacement">Remplacement</option>
+                      <option value="Rénovation / Polissage">Rénovation / Polissage</option>
+                      <option value="Vitrage">Vitrage</option>
+                      <option value="Nettoyage">Nettoyage</option>
+                      <option value="Mécanique">Mécanique</option>
+                      <option value="Autre">Autre</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Usure Pneus */}
       <div style={{ marginTop: 24 }}>
