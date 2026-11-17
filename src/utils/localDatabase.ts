@@ -1,6 +1,7 @@
 import { openDB, type DBSchema } from 'idb';
 
-export type CloudTable = 'clients' | 'vehicles' | 'missions' | 'rappels' | 'custom_mission_types';
+export type CloudTable = 'clients' | 'vehicles' | 'missions' | 'rappels' | 'custom_mission_types'
+  | 'documents' | 'app_settings' | 'custom_expense_types';
 
 export interface CloudChange {
   key: string;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Mission, Client, Vehicle, Rappel, CustomMissionType } from '../types';
+import { Mission, Client, Vehicle, Rappel, CustomMissionType, AppDocument, Settings, DEFAULT_SETTINGS } from '../types';
 import { enqueueCloudChange, flushCloudQueue, getCloudRevision } from './cloudQueue';
 import { flushLocalWrites, persistentStorage } from './persistentStorage';
 import type { CloudTable } from './localDatabase';
@@ -10,7 +10,10 @@ import {
   useClientStore,
   useVehicleStore,
   useRappelStore,
-  useCustomTypeStore
+  useCustomTypeStore,
+  useDocumentStore,
+  useSettingsStore,
+  useExpenseTypeStore,
 } from '../store';
 
 // ==================== SYNC STATE STORE ====================
@@ -58,6 +61,19 @@ async function saveCloudChange(table: CloudTable, id: string, data?: Record<stri
     return false;
   } finally {
     activeWrites -= 1;
+  }
+}
+
+async function fetchAllRows(table: CloudTable, orderByCreatedAt = false) {
+  const rows = [];
+  const pageSize = 500;
+  for (let offset = 0; ; offset += pageSize) {
+    let query = supabase.from(table).select('*');
+    if (orderByCreatedAt) query = query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('id', { ascending: true }).range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) return rows;
   }
 }
 
@@ -118,6 +134,28 @@ export async function mergeLocalDataToCloud() {
   }
 }
 
+export async function mergeExtendedLocalDataToCloud() {
+  if (!isSupabaseConfigured) return;
+  await hydrateLocalStores();
+  if (await persistentStorage.getItem('automission_full_backup_v1') === 'true') return;
+
+  for (const document of useDocumentStore.getState().documents) {
+    if (!await pushDocument(document, true)) throw new Error(useSyncStore.getState().errorMessage || 'Échec de l’envoi des documents');
+  }
+  // A fresh installation must not upload its defaults over another device's
+  // settings. Only import a settings snapshot that actually existed locally.
+  if (await persistentStorage.getItem('automission-settings') !== null) {
+    if (!await pushSettings(useSettingsStore.getState(), true)) {
+      throw new Error(useSyncStore.getState().errorMessage || 'Échec de l’envoi des réglages');
+    }
+  }
+  for (const name of useExpenseTypeStore.getState().customExpenseTypes) {
+    if (!await pushExpenseType(name, true)) throw new Error(useSyncStore.getState().errorMessage || 'Échec de l’envoi des catégories de frais');
+  }
+  await persistentStorage.setItem('automission_full_backup_v1', 'true');
+  await flushLocalWrites();
+}
+
 /**
  * Hydrates all local Zustand stores from Supabase
  */
@@ -140,48 +178,22 @@ async function synchronizeAllData() {
     // Only mark the initial merge complete after every upload succeeds.
     // Existing cloud records win over stale copies from another device.
     await mergeLocalDataToCloud();
+    await mergeExtendedLocalDataToCloud();
 
     for (;;) {
       await flushCloudQueue();
       const revision = getCloudRevision();
-      // 2. Fetch Clients
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (clientsError) throw clientsError;
-
-      // 3. Fetch Vehicles
-      const { data: vehiclesData, error: vehiclesError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (vehiclesError) throw vehiclesError;
-
-      // 4. Fetch Missions
-      const { data: missionsData, error: missionsError } = await supabase
-        .from('missions')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (missionsError) throw missionsError;
-
-      // 5. Fetch Rappels
-      const { data: rappelsData, error: rappelsError } = await supabase
-        .from('rappels')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (rappelsError) throw rappelsError;
-
-      // 6. Fetch Custom Types
-      const { data: customTypesData, error: customTypesError } = await supabase
-        .from('custom_mission_types')
-        .select('*');
-
-      if (customTypesError) throw customTypesError;
+      const [clientsData, vehiclesData, missionsData, rappelsData, customTypesData,
+        documentsData, settingsData, expenseTypesData] = await Promise.all([
+        fetchAllRows('clients', true),
+        fetchAllRows('vehicles', true),
+        fetchAllRows('missions', true),
+        fetchAllRows('rappels', true),
+        fetchAllRows('custom_mission_types'),
+        fetchAllRows('documents', true),
+        fetchAllRows('app_settings'),
+        fetchAllRows('custom_expense_types', true),
+      ]);
 
       // Do not overwrite edits made while this snapshot was downloading.
       if (revision !== getCloudRevision()) continue;
@@ -294,12 +306,34 @@ async function synchronizeAllData() {
         couleur: t.couleur,
       }));
 
+      const documents: AppDocument[] = documentsData.map(d => ({
+        id: d.id,
+        nom: d.nom,
+        type: d.type,
+        dataUrl: d.data_url ?? undefined,
+        mimeType: d.mime_type ?? undefined,
+        size: d.size_bytes ?? undefined,
+        missionId: d.mission_id ?? undefined,
+        vehiculePlaque: d.vehicule_plaque ?? undefined,
+        clientId: d.client_id ?? undefined,
+        createdAt: d.created_at,
+      }));
+
       // Update Zustand Stores directly!
       useClientStore.setState({ clients });
       useVehicleStore.setState({ vehicles });
       useMissionStore.setState({ missions });
       useRappelStore.setState({ rappels });
       useCustomTypeStore.setState({ customTypes });
+      useDocumentStore.setState({ documents });
+      useExpenseTypeStore.setState({ customExpenseTypes: expenseTypesData.map(t => t.nom) });
+      const settings = settingsData.find(s => s.id === 'global');
+      if (settings) useSettingsStore.setState({
+        companyName: settings.company_name ?? DEFAULT_SETTINGS.companyName,
+        tva: settings.tva ?? DEFAULT_SETTINGS.tva,
+        autoAlertDaysFacturation: settings.auto_alert_days_facturation ?? DEFAULT_SETTINGS.autoAlertDaysFacturation,
+        autoAlertDaysRelance: settings.auto_alert_days_relance ?? DEFAULT_SETTINGS.autoAlertDaysRelance,
+      });
 
       await flushLocalWrites();
       if (revision !== getCloudRevision()) continue;
@@ -451,4 +485,39 @@ export function pushCustomType(type: CustomMissionType, ignoreDuplicates = false
 
 export function deleteCustomTypeFromCloud(id: string) {
   return saveCloudChange('custom_mission_types', id);
+}
+
+// ==================== DOCUMENTS AND SETTINGS ====================
+export function pushDocument(document: AppDocument, ignoreDuplicates = false) {
+  return saveCloudChange('documents', document.id, {
+    id: document.id,
+    nom: document.nom,
+    type: document.type,
+    data_url: document.dataUrl ?? null,
+    mime_type: document.mimeType ?? null,
+    size_bytes: document.size ?? null,
+    mission_id: document.missionId ?? null,
+    vehicule_plaque: document.vehiculePlaque ?? null,
+    client_id: document.clientId ?? null,
+    created_at: document.createdAt,
+  }, ignoreDuplicates);
+}
+
+export function deleteDocumentFromCloud(id: string) {
+  return saveCloudChange('documents', id);
+}
+
+export function pushSettings(settings: Settings, ignoreDuplicates = false) {
+  return saveCloudChange('app_settings', 'global', {
+    id: 'global',
+    company_name: settings.companyName,
+    tva: settings.tva,
+    auto_alert_days_facturation: settings.autoAlertDaysFacturation,
+    auto_alert_days_relance: settings.autoAlertDaysRelance,
+    updated_at: new Date().toISOString(),
+  }, ignoreDuplicates);
+}
+
+export function pushExpenseType(name: string, ignoreDuplicates = false) {
+  return saveCloudChange('custom_expense_types', name, { id: name, nom: name }, ignoreDuplicates);
 }

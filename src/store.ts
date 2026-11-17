@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { persistentStorage } from './utils/persistentStorage';
-import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType } from './types';
+import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType, Settings, DEFAULT_SETTINGS } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import {
   pushMission,
@@ -13,7 +13,11 @@ import {
   pushRappel,
   deleteRappelFromCloud,
   pushCustomType,
-  deleteCustomTypeFromCloud
+  deleteCustomTypeFromCloud,
+  pushDocument,
+  deleteDocumentFromCloud,
+  pushSettings,
+  pushExpenseType,
 } from './utils/supabaseSync';
 
 // ==================== MISSION STORE ====================
@@ -66,6 +70,7 @@ export const useMissionStore = create<MissionStore>()(
           prestations: data.prestations || [],
           documents: data.documents || [],
           brouillon: data.brouillon ?? true,
+          signature: data.signature,
           usurePneus: data.usurePneus || [],
           avancesFrais: data.avancesFrais || [],
           createdAt: now,
@@ -392,16 +397,20 @@ export const useDocumentStore = create<DocumentStore>()(
           nom: data.nom,
           type: data.type,
           dataUrl: data.dataUrl,
+          mimeType: data.mimeType,
+          size: data.size,
           missionId: data.missionId,
           vehiculePlaque: data.vehiculePlaque,
           clientId: data.clientId,
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ documents: [doc, ...state.documents] }));
+        void pushDocument(doc);
         return doc;
       },
       deleteDocument: (id) => {
         set((state) => ({ documents: state.documents.filter((d) => d.id !== id) }));
+        void deleteDocumentFromCloud(id);
       },
     }),
     { name: 'automission-documents', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
@@ -474,22 +483,18 @@ export const useRappelStore = create<RappelStore>()(
 );
 
 // ==================== SETTINGS STORE ====================
-interface SettingsStore {
-  tva: number;
-  companyName: string;
-  autoAlertDaysFacturation: number;
-  autoAlertDaysRelance: number;
-  updateSettings: (updates: Partial<{ tva: number; companyName: string; autoAlertDaysFacturation: number; autoAlertDaysRelance: number }>) => void;
+interface SettingsStore extends Settings {
+  updateSettings: (updates: Partial<Settings>) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set) => ({
-      tva: 20,
-      companyName: 'AutoMission Services',
-      autoAlertDaysFacturation: 1,
-      autoAlertDaysRelance: 3,
-      updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
+    (set, get) => ({
+      ...DEFAULT_SETTINGS,
+      updateSettings: (updates) => {
+        set((state) => ({ ...state, ...updates }));
+        void pushSettings(get());
+      },
     }),
     { name: 'automission-settings', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
@@ -503,14 +508,17 @@ interface ExpenseTypeStore {
 
 export const useExpenseTypeStore = create<ExpenseTypeStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       customExpenseTypes: [],
       addExpenseType: (name) => {
+        name = name.trim();
+        if (!name || get().customExpenseTypes.includes(name)) return;
         set((state) => ({
           customExpenseTypes: state.customExpenseTypes.includes(name)
             ? state.customExpenseTypes
             : [...state.customExpenseTypes, name],
         }));
+        void pushExpenseType(name);
       },
     }),
     { name: 'automission-expense-types', storage: createJSONStorage(() => persistentStorage), skipHydration: true }

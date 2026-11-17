@@ -191,7 +191,16 @@ export interface PdfOptions {
 export interface Settings {
   tva: number;
   companyName: string;
+  autoAlertDaysFacturation: number;
+  autoAlertDaysRelance: number;
 }
+
+export const DEFAULT_SETTINGS: Settings = {
+  tva: 20,
+  companyName: 'AutoMission Services',
+  autoAlertDaysFacturation: 1,
+  autoAlertDaysRelance: 3,
+};
 
 // ==================== CLIENT ====================
 export interface Client {
@@ -213,6 +222,8 @@ export interface AppDocument {
   nom: string;
   type: DocumentType;
   dataUrl?: string;
+  mimeType?: string;
+  size?: number;
   missionId?: string;
   vehiculePlaque?: string;
   clientId?: string;
