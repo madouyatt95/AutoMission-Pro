@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { persistentStorage } from './utils/persistentStorage';
 import { Mission, Client, AppDocument, Rappel, MissionStatus, Vehicle, CustomMissionType } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -161,7 +162,7 @@ export const useMissionStore = create<MissionStore>()(
       getMissionsByStatus: (status) => get().missions.filter((m) => m.statut === status),
       getMissionsByClient: (clientId) => get().missions.filter((m) => m.clients.some((c) => c.clientId === clientId)),
     }),
-    { name: 'automission-missions' }
+    { name: 'automission-missions', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -215,7 +216,7 @@ export const useClientStore = create<ClientStore>()(
         deleteClientFromCloud(id);
       },
     }),
-    { name: 'automission-clients' }
+    { name: 'automission-clients', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -327,7 +328,7 @@ export const useVehicleStore = create<VehicleStore>()(
       },
       getByPlaque: (plaque) => get().vehicles.find((v) => v.plaque === plaque.toUpperCase().trim()),
     }),
-    { name: 'automission-vehicles' }
+    { name: 'automission-vehicles', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -370,7 +371,7 @@ export const useCustomTypeStore = create<CustomTypeStore>()(
         deleteCustomTypeFromCloud(id);
       },
     }),
-    { name: 'automission-custom-types' }
+    { name: 'automission-custom-types', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -403,7 +404,7 @@ export const useDocumentStore = create<DocumentStore>()(
         set((state) => ({ documents: state.documents.filter((d) => d.id !== id) }));
       },
     }),
-    { name: 'automission-documents' }
+    { name: 'automission-documents', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -468,7 +469,7 @@ export const useRappelStore = create<RappelStore>()(
         });
       },
     }),
-    { name: 'automission-rappels' }
+    { name: 'automission-rappels', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -490,7 +491,7 @@ export const useSettingsStore = create<SettingsStore>()(
       autoAlertDaysRelance: 3,
       updateSettings: (updates) => set((state) => ({ ...state, ...updates })),
     }),
-    { name: 'automission-settings' }
+    { name: 'automission-settings', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
 
@@ -512,6 +513,25 @@ export const useExpenseTypeStore = create<ExpenseTypeStore>()(
         }));
       },
     }),
-    { name: 'automission-expense-types' }
+    { name: 'automission-expense-types', storage: createJSONStorage(() => persistentStorage), skipHydration: true }
   )
 );
+
+let hydration: Promise<void> | undefined;
+
+export function hydrateLocalStores() {
+  hydration ??= (async () => {
+    const stores = [useMissionStore, useClientStore, useVehicleStore, useCustomTypeStore,
+      useDocumentStore, useRappelStore, useSettingsStore, useExpenseTypeStore];
+    await Promise.all(stores.map(async (store) => {
+      await store.persist.rehydrate();
+      if (!store.persist.hasHydrated()) {
+        throw new Error('Impossible de charger les données locales. Réessayez sans effacer les données du navigateur.');
+      }
+    }));
+  })().catch((error: unknown) => {
+    hydration = undefined;
+    throw error;
+  });
+  return hydration;
+}

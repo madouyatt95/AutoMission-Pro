@@ -25,14 +25,23 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { rappels } = useRappelStore();
-  const { status, lastSynced } = useSyncStore();
+  const { status, lastSynced, errorMessage } = useSyncStore();
   
   const today = new Date().toISOString().split('T')[0];
   const uncompletedRappels = rappels.filter(r => !r.completed && r.date <= today).length;
 
   // Hydrate local store from Supabase on application mount
   useEffect(() => {
-    pullAllData();
+    void pullAllData();
+    const retry = () => { void pullAllData(); };
+    const retryTimer = window.setInterval(() => {
+      if (navigator.onLine && useSyncStore.getState().status === 'error') retry();
+    }, 30_000);
+    window.addEventListener('online', retry);
+    return () => {
+      window.clearInterval(retryTimer);
+      window.removeEventListener('online', retry);
+    };
   }, []);
 
   return (
@@ -66,22 +75,26 @@ export default function App() {
               </div>
             )}
             {status === 'synced' && (
-              <div 
+              <button
+                type="button"
+                aria-label="Actualiser la synchronisation"
                 title={`Synchronisé avec Supabase (${lastSynced ? new Date(lastSynced).toLocaleTimeString() : 'à l\'instant'})`} 
-                style={{ display: 'flex', alignItems: 'center', color: '#10b981', cursor: 'pointer' }}
-                onClick={() => pullAllData()}
+                style={{ display: 'flex', alignItems: 'center', color: '#10b981', cursor: 'pointer', background: 'none', border: 0, padding: 4 }}
+                onClick={() => { void pullAllData(); }}
               >
                 <Cloud size={18} />
-              </div>
+              </button>
             )}
             {status === 'error' && (
-              <div 
-                title="Erreur de synchronisation. Mode local actif." 
-                style={{ display: 'flex', alignItems: 'center', color: 'var(--red)', cursor: 'pointer' }}
-                onClick={() => pullAllData()}
+              <button
+                type="button"
+                aria-label={`Réessayer la synchronisation : ${errorMessage || 'Erreur de connexion'}`}
+                title={`${errorMessage || 'Erreur de synchronisation'}. Cliquez pour réessayer. Mode local actif.`}
+                style={{ display: 'flex', alignItems: 'center', color: 'var(--red)', cursor: 'pointer', background: 'none', border: 0, padding: 4 }}
+                onClick={() => { void pullAllData(); }}
               >
                 <CloudRain size={18} />
-              </div>
+              </button>
             )}
             {status === 'not_configured' && (
               <div 
